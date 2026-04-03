@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mahi Solar — MMS Design System tokens (HSL components only; use via hsl(var(--token))) */
+:root {
+  --background: 0 0% 96%;
+  --foreground: 220 20% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 20% 20%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 20% 20%;
+  --primary: 152 73% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 20% 96%;
+  --secondary-foreground: 220 20% 20%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 220 10% 50%;
+  --accent: 152 73% 95%;
+  --accent-foreground: 152 73% 32%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 100%;
+  --success: 152 73% 32%;
+  --success-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 152 73% 32%;
+  --radius: 0.5rem;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 220 10% 40%;
+  --sidebar-primary: 152 73% 32%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 152 73% 95%;
+  --sidebar-accent-foreground: 152 73% 32%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 152 73% 32%;
+  --chart-revenue: 152 73% 32%;
+  --chart-cost: 0 72% 51%;
+}
+
+.dark {
+  --background: 222 20% 10%;
+  --foreground: 210 40% 98%;
+  --card: 222 20% 14%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 20% 14%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 152 73% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 20% 20%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 20% 20%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 152 73% 20%;
+  --accent-foreground: 152 73% 60%;
+  --destructive: 0 62% 40%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 20% 24%;
+  --input: 217 20% 24%;
+  --ring: 152 73% 40%;
+  --sidebar-background: 222 20% 12%;
+  --sidebar-foreground: 210 30% 70%;
+  --sidebar-primary: 152 73% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 152 73% 15%;
+  --sidebar-accent-foreground: 152 73% 60%;
+  --sidebar-border: 217 20% 24%;
+  --sidebar-ring: 152 73% 40%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+}
+
+/* MMS Input / Select (§7.3–7.4) */
+@layer components {
+  .input-shell {
+    @apply min-h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
+  }
+  textarea.input-shell {
+    min-height: 80px;
+  }
+  .select-shell {
+    @apply h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+}
