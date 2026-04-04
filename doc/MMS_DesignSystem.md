@@ -71,14 +71,14 @@ All colors use **HSL format** stored as CSS custom properties. Referenced via `h
 | `--card-foreground` | `220 20% 20%` | `#29303d` | Card text |
 | `--popover` | `0 0% 100%` | `#ffffff` | Popover/dropdown background |
 | `--popover-foreground` | `220 20% 20%` | `#29303d` | Popover text |
-| `--primary` | `152 73% 32%` | `#168a4a` | Primary actions, brand green |
+| `--primary` | `221 83% 48%` | `#2274e8` | Primary actions, brand blue |
 | `--primary-foreground` | `0 0% 100%` | `#ffffff` | Text on primary |
-| `--secondary` | `210 20% 96%` | `#f1f3f5` | Secondary backgrounds |
-| `--secondary-foreground` | `220 20% 20%` | `#29303d` | Text on secondary |
-| `--muted` | `210 20% 96%` | `#f1f3f5` | Muted/disabled backgrounds |
+| `--secondary` | `214 32% 96%` | `#eef3fb` | Secondary backgrounds |
+| `--secondary-foreground` | `222 47% 20%` | `#1e2a3d` | Text on secondary |
+| `--muted` | `214 32% 96%` | `#eef3fb` | Muted/disabled backgrounds |
 | `--muted-foreground` | `220 10% 50%` | `#737980` | Muted/placeholder text |
-| `--accent` | `152 73% 95%` | `#e6f9ef` | Accent highlights (light green) |
-| `--accent-foreground` | `152 73% 32%` | `#168a4a` | Text on accent |
+| `--accent` | `214 95% 93%` | `#e8f1fe` | Accent highlights (light blue) |
+| `--accent-foreground` | `221 83% 38%` | `#1a5fc4` | Text on accent |
 | `--destructive` | `0 72% 51%` | `#de3232` | Error/delete actions |
 | `--destructive-foreground` | `0 0% 100%` | `#ffffff` | Text on destructive |
 | `--warning` | `38 92% 50%` | `#f5a623` | Warning states |
@@ -87,7 +87,7 @@ All colors use **HSL format** stored as CSS custom properties. Referenced via `h
 | `--success-foreground` | `0 0% 100%` | `#ffffff` | Text on success |
 | `--border` | `220 13% 91%` | `#e2e4e8` | All borders |
 | `--input` | `220 13% 91%` | `#e2e4e8` | Input borders |
-| `--ring` | `152 73% 32%` | `#168a4a` | Focus ring color |
+| `--ring` | `221 83% 48%` | `#2274e8` | Focus ring color |
 
 ### 3.2 Core Tokens — Dark Mode (`.dark`)
 
@@ -99,19 +99,19 @@ All colors use **HSL format** stored as CSS custom properties. Referenced via `h
 | `--card-foreground` | `210 40% 98%` | `#f8fafc` | — |
 | `--popover` | `222 20% 14%` | `#1e2430` | — |
 | `--popover-foreground` | `210 40% 98%` | `#f8fafc` | — |
-| `--primary` | `152 73% 40%` | `#1ba85a` | Brighter green |
+| `--primary` | `217 91% 60%` | `#4f8cff` | Brighter blue (dark mode) |
 | `--primary-foreground` | `0 0% 100%` | `#ffffff` | — |
 | `--secondary` | `217 20% 20%` | `#29303d` | Dark secondary |
 | `--secondary-foreground` | `210 40% 98%` | `#f8fafc` | — |
 | `--muted` | `217 20% 20%` | `#29303d` | — |
 | `--muted-foreground` | `215 20% 65%` | `#8c9bb5` | — |
-| `--accent` | `152 73% 20%` | `#0e5c30` | Dark green |
-| `--accent-foreground` | `152 73% 60%` | `#3dcc7a` | Bright green text |
+| `--accent` | `217 33% 22%` | `#1e3555` | Dark blue accent surface |
+| `--accent-foreground` | `214 95% 94%` | `#e8f1fe` | Light text on accent |
 | `--destructive` | `0 62% 40%` | `#a52a2a` | Darker red |
 | `--destructive-foreground` | `210 40% 98%` | `#f8fafc` | — |
 | `--border` | `217 20% 24%` | `#313a4a` | — |
 | `--input` | `217 20% 24%` | `#313a4a` | — |
-| `--ring` | `152 73% 40%` | `#1ba85a` | — |
+| `--ring` | `217 91% 60%` | `#4f8cff` | — |
 
 ### 3.3 Sidebar Tokens
 
@@ -119,18 +119,18 @@ All colors use **HSL format** stored as CSS custom properties. Referenced via `h
 |-------|-------|------|
 | `--sidebar-background` | `0 0% 100%` | `222 20% 12%` |
 | `--sidebar-foreground` | `220 10% 40%` | `210 30% 70%` |
-| `--sidebar-primary` | `152 73% 32%` | `152 73% 40%` |
+| `--sidebar-primary` | `221 83% 48%` | `217 91% 60%` |
 | `--sidebar-primary-foreground` | `0 0% 100%` | `0 0% 100%` |
-| `--sidebar-accent` | `152 73% 95%` | `152 73% 15%` |
-| `--sidebar-accent-foreground` | `152 73% 32%` | `152 73% 60%` |
+| `--sidebar-accent` | `214 95% 93%` | `217 33% 22%` |
+| `--sidebar-accent-foreground` | `221 83% 38%` | `214 95% 94%` |
 | `--sidebar-border` | `220 13% 91%` | `217 20% 24%` |
-| `--sidebar-ring` | `152 73% 32%` | `152 73% 40%` |
+| `--sidebar-ring` | `221 83% 48%` | `217 91% 60%` |
 
 ### 3.4 Chart Tokens
 
 | Token | HSL Value | Usage |
 |-------|-----------|-------|
-| `--chart-revenue` | `152 73% 32%` | Revenue bars/lines (green) |
+| `--chart-revenue` | `221 83% 48%` | Revenue bars/lines (blue) |
 | `--chart-cost` | `0 72% 51%` | Cost/expense bars/lines (red) |
 
 ### 3.5 Tailwind Color Map
@@ -229,11 +229,11 @@ accordion-up:   height var(--radix-accordion-content-height) → 0, 0.2s ease-ou
 
 | Variant | Classes | Visual |
 |---------|---------|--------|
-| `default` | `bg-primary text-primary-foreground hover:bg-primary/90` | Solid green |
+| `default` | `bg-primary text-primary-foreground hover:bg-primary/90` | Solid blue |
 | `destructive` | `bg-destructive text-destructive-foreground hover:bg-destructive/90` | Solid red |
-| `outline` | `border border-input bg-background hover:bg-accent hover:text-accent-foreground` | Bordered, green hover |
+| `outline` | `border border-input bg-background hover:bg-accent hover:text-accent-foreground` | Bordered, blue-tint hover |
 | `secondary` | `bg-secondary text-secondary-foreground hover:bg-secondary/80` | Gray fill |
-| `ghost` | `hover:bg-accent hover:text-accent-foreground` | No bg, green on hover |
+| `ghost` | `hover:bg-accent hover:text-accent-foreground` | No bg, blue-tint on hover |
 | `link` | `text-primary underline-offset-4 hover:underline` | Text link |
 
 | Size | Classes |
@@ -317,7 +317,7 @@ All interactive elements use:
 ring-offset-background
 focus-visible:outline-none
 focus-visible:ring-2
-focus-visible:ring-ring         → hsl(var(--ring)) = primary green
+focus-visible:ring-ring         → hsl(var(--ring)) = primary blue
 focus-visible:ring-offset-2
 ```
 
@@ -352,7 +352,7 @@ disabled:cursor-not-allowed     (inputs only)
 - **Implementation:** `next-themes` library
 - **Toggle:** Theme toggle in UI switches `.dark` class on `<html>`
 - **Every semantic token has a dark variant** (see Section 3.2)
-- **Brand green shifts from `32% lightness` → `40% lightness`** in dark mode for visibility
+- **Brand primary shifts to a brighter blue in dark mode** for visibility on dark surfaces
 
 ---
 
@@ -397,4 +397,4 @@ Combines conditional classes (`clsx`) and resolves Tailwind conflicts (`twMerge`
 7. **Icons at `size-4`** inside buttons, explicit sizing elsewhere
 8. **`rounded-md`** for most elements, `rounded-lg` for cards, `rounded-full` for badges/avatars
 9. **`shadow-sm`** for cards, `shadow-md` for floating elements, `shadow-lg` for modals
-10. **Focus rings are always primary green** (`--ring` token)
+10. **Focus rings use primary blue** (`--ring` token)

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
+import { SummaryCards } from '../../components/SummaryCards';
 import { useToast, useDataRefresh } from '../../contexts/AppProviders';
 import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
@@ -34,6 +35,7 @@ export function AgentsList() {
     rateType: 'Per kW' as Agent['rateType'],
     rate: '1000',
     address: '',
+    photo: '',
   });
 
   function save(e: React.FormEvent) {
@@ -41,7 +43,7 @@ export function AgentsList() {
     const list = getCollection<Agent>('agents');
     const a: Agent = {
       id: generateId('agt'),
-      photo: '',
+      photo: form.photo,
       fullName: form.fullName,
       mobile: form.mobile.replace(/\D/g, '').slice(-10),
       email: form.email,
@@ -58,8 +60,24 @@ export function AgentsList() {
     show('Agent added', 'success');
   }
 
+  const summary = useMemo(() => {
+    const totalComm = agents.reduce((s, a) => s + a.totalCommission, 0);
+    const paid = agents.reduce((s, a) => s + a.paidCommission, 0);
+    const pending = agents.reduce((s, a) => s + (a.pendingCommission ?? a.totalCommission - a.paidCommission), 0);
+    return { count: agents.length, totalComm, paid, pending };
+  }, [agents]);
+
   return (
     <div className="space-y-4">
+      <SummaryCards
+        columns={4}
+        items={[
+          { label: 'Agents', value: String(summary.count) },
+          { label: 'Commission booked', value: `₹${summary.totalComm.toLocaleString('en-IN')}` },
+          { label: 'Paid out', value: `₹${summary.paid.toLocaleString('en-IN')}` },
+          { label: 'Pending', value: `₹${summary.pending.toLocaleString('en-IN')}` },
+        ]}
+      />
       <Card padding="none" className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -154,6 +172,21 @@ export function AgentsList() {
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
           </label>
+          <label className="sm:col-span-2">
+            <span className="text-xs text-muted-foreground">Photo (stored as data URL)</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="mt-1 block w-full text-sm text-muted-foreground"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                const r = new FileReader();
+                r.onload = () => setForm((prev) => ({ ...prev, photo: String(r.result ?? '') }));
+                r.readAsDataURL(f);
+              }}
+            />
+          </label>
           <div className="flex justify-end gap-2 sm:col-span-2">
             <ShellButton type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancel
@@ -171,7 +204,10 @@ export function AgentsList() {
 export function AgentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
   const agents = useLiveCollection<Agent>('agents');
+  const { bump } = useDataRefresh();
+  const { show } = useToast();
   const enquiries = useLiveCollection<{ id: string; source: { agentId?: string } }>('enquiries');
   const projects = useLiveCollection<{ id: string; agentId?: string; name: string }>('projects');
   const a = agents.find((x) => x.id === id);
@@ -191,41 +227,75 @@ export function AgentDetail() {
   usePageHeader(detailHeader);
 
   if (!a) return <p className="text-muted-foreground">Not found</p>;
-  const referred = enquiries.filter((e) => e.source.agentId === a.id).length;
-  const projs = projects.filter((p) => p.agentId === a.id);
+  const agent = a;
+  const referred = enquiries.filter((e) => e.source.agentId === agent.id).length;
+  const projs = projects.filter((p) => p.agentId === agent.id);
+
+  function persistPhoto(dataUrl: string) {
+    const list = getCollection<Agent>('agents');
+    setCollection(
+      'agents',
+      list.map((x) => (x.id === agent.id ? { ...x, photo: dataUrl } : x))
+    );
+    bump();
+    show('Photo updated', 'success');
+  }
+
   return (
     <div className="space-y-4">
       <Card>
         <h2 className="mb-3 text-base font-semibold text-foreground">Contact & rates</h2>
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          {agent.photo ? (
+            <img src={agent.photo} alt="" className="h-24 w-24 rounded-lg border border-border object-cover" />
+          ) : (
+            <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+              No photo
+            </div>
+          )}
+          <div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const r = new FileReader();
+              r.onload = () => persistPhoto(String(r.result ?? ''));
+              r.readAsDataURL(f);
+              e.target.value = '';
+            }} />
+            <ShellButton type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+              Upload / change photo
+            </ShellButton>
+          </div>
+        </div>
         <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           <p>
             <span className="text-muted-foreground">Mobile</span>
             <br />
-            <span className="font-medium text-foreground">{a.mobile}</span>
+            <span className="font-medium text-foreground">{agent.mobile}</span>
           </p>
           <p>
             <span className="text-muted-foreground">Email</span>
             <br />
-            <span className="font-medium text-foreground">{a.email || '—'}</span>
+            <span className="font-medium text-foreground">{agent.email || '—'}</span>
           </p>
           <p>
             <span className="text-muted-foreground">Rate</span>
             <br />
             <span className="font-medium text-foreground">
-              ₹{a.rate} ({a.rateType})
+              ₹{agent.rate} ({agent.rateType})
             </span>
           </p>
           <p>
             <span className="text-muted-foreground">Commission</span>
             <br />
             <span className="font-medium text-foreground">
-              ₹{a.paidCommission} / ₹{a.totalCommission}
+              ₹{agent.paidCommission} / ₹{agent.totalCommission}
             </span>
           </p>
           <p className="sm:col-span-2">
             <span className="text-muted-foreground">Address</span>
             <br />
-            <span className="font-medium text-foreground">{a.address || '—'}</span>
+            <span className="font-medium text-foreground">{agent.address || '—'}</span>
           </p>
         </div>
       </Card>

@@ -5,6 +5,8 @@ type CardProps = {
   children: ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Hero / KPI emphasis — gradient border tone, slightly stronger shadow */
+  variant?: 'default' | 'feature';
   /** Hover lift (links / clickable rows) */
   interactive?: boolean;
 };
@@ -16,11 +18,20 @@ const pad: Record<NonNullable<CardProps['padding']>, string> = {
   lg: 'p-6 sm:p-8',
 };
 
-export function Card({ children, className = '', padding = 'md', interactive }: CardProps) {
+export function Card({
+  children,
+  className = '',
+  padding = 'md',
+  variant = 'default',
+  interactive,
+}: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-lg border border-border bg-card text-card-foreground shadow-sm',
+        'rounded-lg border text-card-foreground shadow-sm',
+        variant === 'feature'
+          ? 'border-primary/20 bg-gradient-to-br from-card via-card to-primary/[0.06] shadow-md'
+          : 'border-border bg-card',
         interactive && 'transition-colors duration-200 hover:border-primary/20 hover:shadow-md',
         pad[padding],
         className

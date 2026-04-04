@@ -1,14 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { DocumentPreviewFrame } from '../../components/DocumentPreviewFrame';
 import { Modal } from '../../components/Modal';
+import { ShellButton } from '../../components/ShellButton';
 import { useToast, useDataRefresh } from '../../contexts/AppProviders';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
+import { requirePositiveAmount, optionalNonNegativeNumber, requireNonEmptyTrimmed } from '../../lib/formValidation';
 import { formatINRDecimal, partnerProfitShareType2, partnerContributionTotal } from '../../lib/helpers';
-import { generateId, getCollection, setCollection } from '../../lib/storage';
+import { computeGstBreakup, gstinSameState, invoiceGrandTotal } from '../../lib/gstCompute';
+import { exportDomToPdf } from '../../lib/pdfExport';
+import { generateId, getCollection, getItem, setCollection } from '../../lib/storage';
 import type {
   ChannelPartner,
   ChannelPartnerFee,
   Customer,
+  InvoiceLineItem,
   Loan,
   Partner,
   PartnerSettlement,
@@ -23,26 +29,67 @@ export function SaleBillNew() {
   const navigate = useNavigate();
   const projects = useLiveCollection<Project>('projects');
   const customers = useLiveCollection<Customer>('customers');
-  const { bump } = useDataRefresh();
+  const { bump, version } = useDataRefresh();
   const { show } = useToast();
+  const company = useMemo(() => getItem<{ gst: string }>('companyProfile'), [version]);
   const [pid, setPid] = useState(projects[0]?.id ?? '');
-  const [total, setTotal] = useState('25000');
+  const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([
+    { description: 'Sale', hsn: '', quantity: 1, rate: 25000, gstRate: 18, amount: 25000 },
+  ]);
+  const [customerGstin, setCustomerGstin] = useState('');
+  const [placeOfSupply, setPlaceOfSupply] = useState('');
+  const [forceIgst, setForceIgst] = useState(false);
+
+  const proj = projects.find((p) => p.id === pid);
+  const cust = proj ? customers.find((c) => c.id === proj.customerId) : undefined;
+
+  const sameState = forceIgst ? false : gstinSameState(company?.gst, customerGstin || cust?.gstin);
+  const breakup = useMemo(() => computeGstBreakup(lineItems, undefined, sameState), [lineItems, sameState]);
+  const grandTotal = invoiceGrandTotal(breakup);
+
+  function updateLine(idx: number, patch: Partial<InvoiceLineItem>) {
+    setLineItems((prev) => {
+      const next = [...prev];
+      const base = next[idx];
+      if (!base) return prev;
+      const cur: InvoiceLineItem = {
+        description: patch.description ?? base.description,
+        hsn: patch.hsn ?? base.hsn,
+        quantity: patch.quantity ?? base.quantity,
+        rate: patch.rate ?? base.rate,
+        gstRate: patch.gstRate ?? base.gstRate,
+        amount: 0,
+      };
+      cur.amount = cur.quantity * cur.rate;
+      next[idx] = cur;
+      return next;
+    });
+  }
 
   function save(e: React.FormEvent) {
     e.preventDefault();
-    const proj = projects.find((p) => p.id === pid);
-    if (!proj) return;
+    const p = projects.find((x) => x.id === pid);
+    if (!p) return;
+    if (!lineItems.length || lineItems.some((l) => !l.description.trim())) {
+      show('Each line needs a description', 'error');
+      return;
+    }
     const list = getCollection<SaleBill>('saleBills');
+    const c = customers.find((x) => x.id === p.customerId);
     const sb: SaleBill = {
       id: generateId('sb'),
-      projectId: proj.id,
-      customerId: proj.customerId,
+      projectId: p.id,
+      customerId: p.customerId,
       billNumber: `SB-${new Date().getFullYear()}-${String(list.length + 50).padStart(3, '0')}`,
       date: new Date().toISOString().slice(0, 10),
-      total: Number(total) || 0,
+      total: grandTotal,
       received: 0,
-      balance: Number(total) || 0,
+      balance: grandTotal,
       status: 'Unpaid',
+      lineItems,
+      customerGstin: customerGstin.trim() || c?.gstin,
+      placeOfSupply: placeOfSupply.trim() || undefined,
+      gstBreakup: breakup,
       createdAt: new Date().toISOString(),
     };
     setCollection('saleBills', [...list, sb]);
@@ -51,16 +98,13 @@ export function SaleBillNew() {
     navigate(`/finance/sale-bills/${sb.id}`);
   }
 
-  const proj = projects.find((p) => p.id === pid);
-  const cust = proj ? customers.find((c) => c.id === proj.customerId) : undefined;
-
   return (
-    <div className="mx-auto max-w-lg space-y-4">
+    <div className="mx-auto max-w-4xl space-y-4">
       <Link to="/finance/sale-bills" className="text-sm text-primary">
         ← Back
       </Link>
       <h1 className="text-2xl font-bold">New sale bill</h1>
-      <form onSubmit={save} className="space-y-3 rounded-lg border bg-card p-4">
+      <form onSubmit={save} className="space-y-4 rounded-lg border bg-card p-4">
         <label className="block text-sm">
           Project
           <select className="mt-1 w-full rounded border px-3 py-2" value={pid} onChange={(e) => setPid(e.target.value)}>
@@ -73,12 +117,70 @@ export function SaleBillNew() {
         </label>
         <p className="text-sm text-muted-foreground">Customer: {cust?.name}</p>
         <label className="block text-sm">
-          Total (₹)
-          <input className="mt-1 w-full rounded border px-3 py-2" value={total} onChange={(e) => setTotal(e.target.value)} />
+          Customer GSTIN
+          <input className="mt-1 w-full rounded border px-3 py-2" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value)} />
         </label>
-        <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-primary-foreground">
+        <label className="block text-sm">
+          Place of supply
+          <input className="mt-1 w-full rounded border px-3 py-2" value={placeOfSupply} onChange={(e) => setPlaceOfSupply(e.target.value)} />
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={forceIgst} onChange={(e) => setForceIgst(e.target.checked)} />
+          Inter-state (IGST)
+        </label>
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-xs text-muted-foreground">
+              <th className="py-1">Description</th>
+              <th className="py-1">Qty</th>
+              <th className="py-1">Rate</th>
+              <th className="py-1">GST%</th>
+              <th className="py-1">Taxable</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lineItems.map((li, idx) => (
+              <tr key={idx} className="border-t">
+                <td className="py-1 pr-1">
+                  <input
+                    className="w-full rounded border px-2 py-1"
+                    value={li.description}
+                    onChange={(e) => updateLine(idx, { description: e.target.value })}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    className="w-16 rounded border px-2 py-1"
+                    value={li.quantity}
+                    onChange={(e) => updateLine(idx, { quantity: Number(e.target.value) || 0 })}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    className="w-24 rounded border px-2 py-1"
+                    value={li.rate}
+                    onChange={(e) => updateLine(idx, { rate: Number(e.target.value) || 0 })}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    className="w-14 rounded border px-2 py-1"
+                    value={li.gstRate}
+                    onChange={(e) => updateLine(idx, { gstRate: Number(e.target.value) || 0 })}
+                  />
+                </td>
+                <td>{li.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-sm font-medium">Grand total: {formatINRDecimal(grandTotal)}</p>
+        <ShellButton type="submit" variant="primary">
           Create
-        </button>
+        </ShellButton>
       </form>
     </div>
   );
@@ -88,22 +190,106 @@ export function SaleBillDetail() {
   const { id } = useParams();
   const bills = useLiveCollection<SaleBill>('saleBills');
   const customers = useLiveCollection<Customer>('customers');
+  const { version } = useDataRefresh();
+  const printRef = useRef<HTMLDivElement>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const projects = useLiveCollection<Project>('projects');
+  const company = useMemo(() => getItem<{ name: string; gst: string; address: string }>('companyProfile'), [version]);
   const row = bills.find((b) => b.id === id);
   if (!row) return <p>Not found</p>;
-  const cust = customers.find((c) => c.id === row.customerId);
+  const bill = row;
+  const cust = customers.find((c) => c.id === bill.customerId);
+  const proj = projects.find((p) => p.id === bill.projectId);
+
+  async function downloadPdf() {
+    if (!printRef.current) return;
+    setPdfBusy(true);
+    try {
+      await exportDomToPdf(printRef.current, bill.billNumber);
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <Link to="/finance/sale-bills" className="text-sm text-primary">
-        ← Back
-      </Link>
-      <h1 className="text-2xl font-bold">{row.billNumber}</h1>
-      <div className="rounded-lg border bg-card p-4 text-sm space-y-1">
-        <p>Customer: {cust?.name}</p>
-        <p>Total: {formatINRDecimal(row.total)}</p>
-        <p>Received: {formatINRDecimal(row.received)}</p>
-        <p>Balance: {formatINRDecimal(row.balance)}</p>
-        <p>Status: {row.status}</p>
-        {row.notes && <p>Notes: {row.notes}</p>}
+      <div className="flex flex-wrap gap-2">
+        <Link to="/finance/sale-bills" className="text-sm text-primary">
+          ← Back
+        </Link>
+        <ShellButton type="button" variant="secondary" disabled={pdfBusy} onClick={() => void downloadPdf()}>
+          {pdfBusy ? 'PDF…' : 'Download PDF'}
+        </ShellButton>
+      </div>
+      <h1 className="text-2xl font-bold">{bill.billNumber}</h1>
+      <div ref={printRef} className="space-y-4 rounded-lg border bg-card p-4 text-sm">
+        <DocumentPreviewFrame
+          company={{
+            name: company?.name ?? 'Company',
+            gst: company?.gst,
+            address: company?.address,
+          }}
+          partyTitle="Bill to"
+          partyName={cust?.name ?? 'Customer'}
+          partyDetails={cust?.address ? <p>{cust.address}</p> : null}
+          documentKind="Sale bill"
+          reference={bill.billNumber}
+          dateValue={bill.date}
+          extraMeta={[
+            ...(bill.placeOfSupply ? [{ label: 'Place of supply', value: bill.placeOfSupply }] : []),
+            ...(proj ? [{ label: 'Project', value: proj.name }] : []),
+            ...(bill.customerGstin || cust?.gstin
+              ? [{ label: 'Customer GSTIN', value: bill.customerGstin ?? cust?.gstin ?? '' }]
+              : []),
+          ]}
+          summary={
+            <>
+              <div>
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-lg font-semibold text-foreground">{formatINRDecimal(bill.total)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Received</p>
+                <p className="text-lg font-semibold text-foreground">{formatINRDecimal(bill.received)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Balance</p>
+                <p className="text-lg font-semibold text-foreground">{formatINRDecimal(bill.balance)}</p>
+                <p className="text-xs font-medium text-muted-foreground">{bill.status}</p>
+              </div>
+            </>
+          }
+        />
+        {bill.lineItems && bill.lineItems.length > 0 && (
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="py-1">Item</th>
+                <th className="py-1">Taxable</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bill.lineItems.map((li, i) => (
+                <tr key={i} className="border-t">
+                  <td className="py-1">{li.description}</td>
+                  <td>{formatINRDecimal(li.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {bill.gstBreakup && (
+          <div className="border-t pt-2">
+            {bill.gstBreakup.igst > 0 ? (
+              <p>IGST: {formatINRDecimal(bill.gstBreakup.igst)}</p>
+            ) : (
+              <p>
+                CGST: {formatINRDecimal(bill.gstBreakup.cgst)} · SGST: {formatINRDecimal(bill.gstBreakup.sgst)}
+              </p>
+            )}
+          </div>
+        )}
+        {bill.notes && <p className="border-t pt-3 text-muted-foreground">Notes: {bill.notes}</p>}
       </div>
     </div>
   );
@@ -304,6 +490,9 @@ export function PartnerDetail() {
   const [setNotes, setSetNotes] = useState('');
   const [contribOpen, setContribOpen] = useState(false);
   const [projPick, setProjPick] = useState('');
+  const [laborDesc, setLaborDesc] = useState('');
+  const [laborHours, setLaborHours] = useState('');
+  const [laborCost, setLaborCost] = useState('');
 
   const p = partners.find((x) => x.id === id);
   if (!p) return <p>Not found</p>;
@@ -328,7 +517,10 @@ export function PartnerDetail() {
 
   function settle() {
     const amount = Number(setAmt);
-    if (amount <= 0) return;
+    if (amount <= 0) {
+      show('Enter a positive settlement amount', 'error');
+      return;
+    }
     const list = getCollection<PartnerSettlement>('partnerSettlements');
     setCollection('partnerSettlements', [
       ...list,
@@ -350,13 +542,26 @@ export function PartnerDetail() {
   function addLaborContrib() {
     const pr = projects.find((x) => x.id === projPick);
     if (!pr || pr.type !== 'Partner with Contributions') {
-      show('Pick Type 4 project', 'error');
+      show('Pick a Partner with Contributions project', 'error');
       return;
     }
-    const desc = window.prompt('Labor description?') ?? '';
-    const hours = Number(window.prompt('Hours?') ?? '0');
-    const cost = Number(window.prompt('Cost ₹?') ?? '0');
-    if (!desc || cost <= 0) return;
+    const descErr = requireNonEmptyTrimmed(laborDesc, 'Description');
+    if (descErr) {
+      show(descErr, 'error');
+      return;
+    }
+    const cost = requirePositiveAmount(laborCost, 'Cost');
+    if (cost == null) {
+      show('Cost must be a positive number', 'error');
+      return;
+    }
+    const hoursParsed = optionalNonNegativeNumber(laborHours, 'Hours');
+    if (typeof hoursParsed === 'object' && 'error' in hoursParsed) {
+      show(hoursParsed.error, 'error');
+      return;
+    }
+    const hours = hoursParsed;
+    const desc = laborDesc.trim();
     const laborId = generateId('lab');
     const list = getCollection<Project>('projects');
     setCollection(
@@ -379,6 +584,9 @@ export function PartnerDetail() {
     );
     bump();
     setContribOpen(false);
+    setLaborDesc('');
+    setLaborHours('');
+    setLaborCost('');
     show('Contribution added', 'success');
   }
 
@@ -435,8 +643,17 @@ export function PartnerDetail() {
           Record
         </button>
       </Modal>
-      <Modal open={contribOpen} title="Partner labor contribution" onClose={() => setContribOpen(false)}>
-        <select className="mb-2 w-full rounded border px-3 py-2" value={projPick} onChange={(e) => setProjPick(e.target.value)}>
+      <Modal
+        open={contribOpen}
+        title="Partner labor contribution"
+        onClose={() => {
+          setContribOpen(false);
+          setLaborDesc('');
+          setLaborHours('');
+          setLaborCost('');
+        }}
+      >
+        <select className="select-shell mb-2 w-full" value={projPick} onChange={(e) => setProjPick(e.target.value)}>
           <option value="">Select Type 4 project</option>
           {linked.filter((x) => x.type === 'Partner with Contributions').map((pr) => (
             <option key={pr.id} value={pr.id}>
@@ -444,9 +661,21 @@ export function PartnerDetail() {
             </option>
           ))}
         </select>
-        <button type="button" className="rounded bg-primary px-4 py-2 text-primary-foreground" onClick={addLaborContrib}>
-          Add labor (prompts)
-        </button>
+        <label className="mb-2 block text-sm">
+          Description *
+          <input className="input-shell mt-1 w-full" value={laborDesc} onChange={(e) => setLaborDesc(e.target.value)} />
+        </label>
+        <label className="mb-2 block text-sm">
+          Hours (optional)
+          <input className="input-shell mt-1 w-full" type="number" min={0} step={0.5} value={laborHours} onChange={(e) => setLaborHours(e.target.value)} />
+        </label>
+        <label className="mb-3 block text-sm">
+          Cost ₹ *
+          <input className="input-shell mt-1 w-full" type="number" min={0} step={1} value={laborCost} onChange={(e) => setLaborCost(e.target.value)} />
+        </label>
+        <ShellButton type="button" variant="primary" onClick={addLaborContrib}>
+          Add labor
+        </ShellButton>
       </Modal>
     </div>
   );
@@ -473,7 +702,10 @@ export function ChannelPartnerDetail() {
 
   function addFee() {
     const amount = Number(amt);
-    if (amount <= 0) return;
+    if (amount <= 0) {
+      show('Enter a positive fee amount', 'error');
+      return;
+    }
     const list = getCollection<ChannelPartnerFee>('channelFees');
     setCollection('channelFees', [
       ...list,

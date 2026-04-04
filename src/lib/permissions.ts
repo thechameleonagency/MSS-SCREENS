@@ -10,10 +10,12 @@ export function canAccessPath(role: UserRole, path: string): boolean {
     if (financePrefixes.some((p) => path.startsWith(p))) return false;
     if (hrPrefixes.some((p) => path.startsWith(p))) return false;
     if (settingsPrefixes.some((p) => path.startsWith(p))) return false;
+    if (path.startsWith('/audit')) return false;
     return (
       path.startsWith('/dashboard') ||
       path.startsWith('/sales') ||
       path.startsWith('/projects') ||
+      path.startsWith('/analytics') ||
       path.startsWith('/utilities') ||
       path === '/'
     );
@@ -22,8 +24,10 @@ export function canAccessPath(role: UserRole, path: string): boolean {
     return (
       path.startsWith('/dashboard') ||
       path.startsWith('/projects') ||
-      path.startsWith('/hr/attendance') ||
+      path === '/hr' ||
+      path === '/hr/attendance' ||
       path.startsWith('/hr/tasks') ||
+      path === '/hr/desk' ||
       path.startsWith('/utilities') ||
       path === '/'
     );

@@ -42,13 +42,28 @@ export function perDayRate(salary: number): number {
   return Math.round((salary / WORKING_DAYS_PER_MONTH) * 100) / 100;
 }
 
+export type QuotationDiscount = {
+  type?: 'percent' | 'amount';
+  percent: number;
+  /** Flat ₹ discount when type is `amount` */
+  value: number;
+};
+
+export function computeQuotationEffective(lineTotal: number, discount: QuotationDiscount, gstPercent: number): number {
+  const t = discount.type ?? 'percent';
+  const afterDisc =
+    t === 'amount'
+      ? Math.max(0, lineTotal - (discount.value || 0))
+      : lineTotal * (1 - (discount.percent || 0) / 100);
+  return Math.round(afterDisc * (1 + gstPercent / 100) * 100) / 100;
+}
+
 export function computeEffectivePrice(
   lineTotal: number,
   discountPercent: number,
   gstPercent: number
 ): number {
-  const afterDisc = lineTotal * (1 - discountPercent / 100);
-  return Math.round(afterDisc * (1 + gstPercent / 100) * 100) / 100;
+  return computeQuotationEffective(lineTotal, { type: 'percent', percent: discountPercent, value: 0 }, gstPercent);
 }
 
 export function lineItemsTotal(

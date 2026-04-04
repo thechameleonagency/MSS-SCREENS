@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card';
+import { DataTableShell, dataTableClasses } from '../../components/DataTableShell';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
+import { SummaryCards } from '../../components/SummaryCards';
 import { useToast, useDataRefresh } from '../../contexts/AppProviders';
 import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
@@ -22,6 +24,10 @@ export function CustomersList() {
     email: '',
     address: '',
     type: 'Individual' as Customer['type'],
+    gstin: '',
+    siteAddress: '',
+    pan: '',
+    state: '',
   });
 
   const pageHeader = useMemo(
@@ -43,8 +49,15 @@ export function CustomersList() {
     const list = getCollection<Customer>('customers');
     const c: Customer = {
       id: generateId('cust'),
-      ...form,
+      name: form.name,
       phone: form.phone.replace(/\D/g, '').slice(-10),
+      email: form.email,
+      address: form.address,
+      type: form.type,
+      gstin: form.gstin.trim() || undefined,
+      siteAddress: form.siteAddress.trim() || undefined,
+      pan: form.pan.trim().toUpperCase() || undefined,
+      state: form.state.trim() || undefined,
       createdAt: new Date().toISOString(),
     };
     setCollection('customers', [...list, c]);
@@ -56,28 +69,48 @@ export function CustomersList() {
   const pendingByCustomer = (cid: string) =>
     invoices.filter((i) => i.customerId === cid && i.status !== 'Paid').reduce((s, i) => s + i.balance, 0);
 
+  const summary = useMemo(() => {
+    const companies = customers.filter((c) => c.type === 'Company').length;
+    const withPending = customers.filter((c) => pendingByCustomer(c.id) > 0).length;
+    return {
+      total: customers.length,
+      companies,
+      individuals: customers.length - companies,
+      withPending,
+    };
+  }, [customers, invoices]);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
+      <SummaryCards
+        columns={4}
+        items={[
+          { label: 'Customers', value: String(summary.total) },
+          { label: 'Companies', value: String(summary.companies) },
+          { label: 'Individuals', value: String(summary.individuals) },
+          { label: 'With pending dues', value: String(summary.withPending) },
+        ]}
+      />
       <Card padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/90">
+        <DataTableShell bare>
+          <table className={dataTableClasses}>
+            <thead>
               <tr>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Name</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Phone</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Type</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Pending</th>
-                <th className="px-4 py-3" />
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Type</th>
+                <th>Pending</th>
+                <th className="w-24" />
               </tr>
             </thead>
             <tbody>
               {customers.map((c) => (
-                <tr key={c.id} className="border-t border-border transition hover:bg-muted/80">
-                  <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.phone}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.type}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatINR(pendingByCustomer(c.id))}</td>
-                  <td className="px-4 py-3">
+                <tr key={c.id} className="transition hover:bg-muted/50">
+                  <td className="font-medium text-foreground">{c.name}</td>
+                  <td className="text-muted-foreground">{c.phone}</td>
+                  <td className="text-muted-foreground">{c.type}</td>
+                  <td className="text-muted-foreground">{formatINR(pendingByCustomer(c.id))}</td>
+                  <td>
                     <Link className="font-medium text-primary hover:text-primary/90" to={`/sales/customers/${c.id}`}>
                       View
                     </Link>
@@ -86,7 +119,7 @@ export function CustomersList() {
               ))}
             </tbody>
           </table>
-        </div>
+        </DataTableShell>
       </Card>
       <Modal open={open} title="Add customer" onClose={() => setOpen(false)}>
         <form className="space-y-3" onSubmit={save}>
@@ -137,6 +170,42 @@ export function CustomersList() {
               <option value="Company">Company</option>
             </select>
           </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">GSTIN (company)</span>
+            <input
+              className="input-shell mt-1"
+              value={form.gstin}
+              onChange={(e) => setForm({ ...form, gstin: e.target.value })}
+              placeholder="Optional"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Site / installation address</span>
+            <textarea
+              className="input-shell mt-1 min-h-[3rem]"
+              rows={2}
+              value={form.siteAddress}
+              onChange={(e) => setForm({ ...form, siteAddress: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">PAN</span>
+            <input
+              className="input-shell mt-1"
+              value={form.pan}
+              onChange={(e) => setForm({ ...form, pan: e.target.value })}
+              placeholder="Optional"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">State (place of supply)</span>
+            <input
+              className="input-shell mt-1"
+              value={form.state}
+              onChange={(e) => setForm({ ...form, state: e.target.value })}
+              placeholder="e.g. Maharashtra"
+            />
+          </label>
           <div className="flex justify-end gap-2 pt-2">
             <ShellButton type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancel
@@ -163,7 +232,17 @@ export function CustomerDetail() {
   const c = customers.find((x) => x.id === id);
   const [tab, setTab] = useState<'inv' | 'sb' | 'quo' | 'proj' | 'pay'>('inv');
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', phone: '', email: '', address: '', type: 'Individual' as Customer['type'] });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    type: 'Individual' as Customer['type'],
+    gstin: '',
+    siteAddress: '',
+    pan: '',
+    state: '',
+  });
   const { bump } = useDataRefresh();
   const { show } = useToast();
 
@@ -188,6 +267,10 @@ export function CustomerDetail() {
                 email: row.email,
                 address: row.address,
                 type: row.type,
+                gstin: row.gstin ?? '',
+                siteAddress: row.siteAddress ?? '',
+                pan: row.pan ?? '',
+                state: row.state ?? '',
               });
               setEditOpen(true);
             }}
@@ -220,6 +303,10 @@ export function CustomerDetail() {
               ...x,
               ...editForm,
               phone: editForm.phone.replace(/\D/g, '').slice(-10),
+              gstin: editForm.gstin.trim() || undefined,
+              siteAddress: editForm.siteAddress.trim() || undefined,
+              pan: editForm.pan.trim().toUpperCase() || undefined,
+              state: editForm.state.trim() || undefined,
             }
           : x
       )
@@ -236,6 +323,30 @@ export function CustomerDetail() {
           {c.phone} · {c.email}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">{c.address || '—'}</p>
+        {c.siteAddress && (
+          <p className="mt-2 text-sm">
+            <span className="text-muted-foreground">Site address</span>{' '}
+            <span className="font-medium text-foreground">{c.siteAddress}</span>
+          </p>
+        )}
+        {c.gstin && (
+          <p className="mt-2 text-sm">
+            <span className="text-muted-foreground">GSTIN</span>{' '}
+            <span className="font-medium text-foreground">{c.gstin}</span>
+          </p>
+        )}
+        {c.pan && (
+          <p className="mt-2 text-sm">
+            <span className="text-muted-foreground">PAN</span>{' '}
+            <span className="font-medium text-foreground">{c.pan}</span>
+          </p>
+        )}
+        {c.state && (
+          <p className="mt-2 text-sm">
+            <span className="text-muted-foreground">State</span>{' '}
+            <span className="font-medium text-foreground">{c.state}</span>
+          </p>
+        )}
       </Card>
 
       <Card padding="sm">
@@ -371,6 +482,39 @@ export function CustomerDetail() {
               <option value="Individual">Individual</option>
               <option value="Company">Company</option>
             </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">GSTIN</span>
+            <input
+              className="input-shell mt-1"
+              value={editForm.gstin}
+              onChange={(e) => setEditForm({ ...editForm, gstin: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Site / installation address</span>
+            <textarea
+              className="input-shell mt-1 min-h-[3rem]"
+              rows={2}
+              value={editForm.siteAddress}
+              onChange={(e) => setEditForm({ ...editForm, siteAddress: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">PAN</span>
+            <input
+              className="input-shell mt-1"
+              value={editForm.pan}
+              onChange={(e) => setEditForm({ ...editForm, pan: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">State</span>
+            <input
+              className="input-shell mt-1"
+              value={editForm.state}
+              onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+            />
           </label>
           <div className="flex justify-end gap-2 pt-2">
             <ShellButton type="button" variant="secondary" onClick={() => setEditOpen(false)}>

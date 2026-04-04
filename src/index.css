@@ -4,40 +4,50 @@
 
 /* Mahi Solar — MMS Design System tokens (HSL components only; use via hsl(var(--token))) */
 :root {
-  --background: 0 0% 96%;
-  --foreground: 220 20% 20%;
+  --background: 220 14% 96%;
+  --foreground: 222 22% 18%;
   --card: 0 0% 100%;
-  --card-foreground: 220 20% 20%;
+  --card-foreground: 222 22% 18%;
   --popover: 0 0% 100%;
-  --popover-foreground: 220 20% 20%;
-  --primary: 152 73% 32%;
+  --popover-foreground: 222 22% 18%;
+  /* Primary: deep ocean blue — main CTAs only */
+  --primary: 217 78% 42%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 20% 96%;
-  --secondary-foreground: 220 20% 20%;
-  --muted: 210 20% 96%;
-  --muted-foreground: 220 10% 50%;
-  --accent: 152 73% 95%;
-  --accent-foreground: 152 73% 32%;
+  /* Secondary: cool slate — chips, secondary panels */
+  --secondary: 218 20% 92%;
+  --secondary-foreground: 222 30% 26%;
+  /* Tertiary: teal — nav active, links on hover, accents (not the same as primary) */
+  --tertiary: 168 55% 36%;
+  --tertiary-foreground: 0 0% 100%;
+  --tertiary-muted: 168 35% 94%;
+  --tertiary-muted-foreground: 168 45% 24%;
+  --muted: 220 14% 93%;
+  --muted-foreground: 220 9% 46%;
+  /* Interactive hover: neutral gray (avoid “everything turns blue”) */
+  --accent: 220 14% 91%;
+  --accent-foreground: 222 22% 18%;
+  --surface-hover: 220 12% 88%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 100%;
-  --success: 152 73% 32%;
+  --success: 152 69% 36%;
   --success-foreground: 0 0% 100%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 152 73% 32%;
+  --border: 220 13% 88%;
+  --input: 220 13% 88%;
+  --ring: 168 45% 38%;
   --radius: 0.5rem;
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 220 10% 40%;
-  --sidebar-primary: 152 73% 32%;
+  --sidebar-background: 222 18% 99%;
+  --sidebar-foreground: 220 12% 38%;
+  --sidebar-primary: 217 78% 42%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 152 73% 95%;
-  --sidebar-accent-foreground: 152 73% 32%;
-  --sidebar-border: 220 13% 91%;
-  --sidebar-ring: 152 73% 32%;
-  --chart-revenue: 152 73% 32%;
-  --chart-cost: 0 72% 51%;
+  --sidebar-accent: 168 32% 92%;
+  --sidebar-accent-foreground: 168 50% 22%;
+  --sidebar-hover: 220 12% 93%;
+  --sidebar-border: 220 13% 90%;
+  --sidebar-ring: 168 45% 38%;
+  --chart-revenue: 217 78% 42%;
+  --chart-cost: 168 45% 38%;
 }
 
 .dark {
@@ -47,27 +57,35 @@
   --card-foreground: 210 40% 98%;
   --popover: 222 20% 14%;
   --popover-foreground: 210 40% 98%;
-  --primary: 152 73% 40%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 217 20% 20%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217 20% 20%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 152 73% 20%;
-  --accent-foreground: 152 73% 60%;
+  --primary: 215 85% 58%;
+  --primary-foreground: 222 22% 12%;
+  --secondary: 217 18% 22%;
+  --secondary-foreground: 210 35% 92%;
+  --tertiary: 168 42% 48%;
+  --tertiary-foreground: 168 90% 8%;
+  --tertiary-muted: 168 22% 18%;
+  --tertiary-muted-foreground: 168 35% 78%;
+  --muted: 217 18% 20%;
+  --muted-foreground: 215 16% 62%;
+  --accent: 217 16% 24%;
+  --accent-foreground: 210 35% 95%;
+  --surface-hover: 217 14% 28%;
   --destructive: 0 62% 40%;
   --destructive-foreground: 210 40% 98%;
-  --border: 217 20% 24%;
-  --input: 217 20% 24%;
-  --ring: 152 73% 40%;
-  --sidebar-background: 222 20% 12%;
-  --sidebar-foreground: 210 30% 70%;
-  --sidebar-primary: 152 73% 40%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 152 73% 15%;
-  --sidebar-accent-foreground: 152 73% 60%;
-  --sidebar-border: 217 20% 24%;
-  --sidebar-ring: 152 73% 40%;
+  --border: 217 16% 26%;
+  --input: 217 16% 26%;
+  --ring: 168 42% 48%;
+  --sidebar-background: 222 22% 11%;
+  --sidebar-foreground: 215 14% 72%;
+  --sidebar-primary: 215 85% 58%;
+  --sidebar-primary-foreground: 222 22% 12%;
+  --sidebar-accent: 168 22% 18%;
+  --sidebar-accent-foreground: 168 40% 82%;
+  --sidebar-hover: 217 14% 18%;
+  --sidebar-border: 217 16% 22%;
+  --sidebar-ring: 168 42% 48%;
+  --chart-revenue: 215 85% 58%;
+  --chart-cost: 168 42% 48%;
 }
 
 @layer base {

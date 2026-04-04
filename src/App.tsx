@@ -5,14 +5,27 @@ import { AgentDetail, AgentsList } from './pages/sales/Agents';
 import { CustomerDetail, CustomersList } from './pages/sales/Customers';
 import { EnquiryDetail, EnquiryList } from './pages/sales/Enquiries';
 import { QuotationDetail, QuotationNew, QuotationPreview, QuotationsList } from './pages/sales/Quotations';
+import { SalesDesk } from './pages/sales/SalesDesk';
+import { ActiveSitesPage } from './pages/operations/ActiveSitesPage';
+import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import {
-  GlobalTimeline,
-  ProjectDetail,
-  ProjectsList,
-  SiteDetail,
-  SitesList,
-} from './pages/projects/Projects';
+  AuditAssetsPage,
+  AuditCashBankPage,
+  AuditDashboardPage,
+  AuditDataFlowPage,
+  AuditDebtorsCreditorsPage,
+  AuditExpensesPage,
+  AuditGstPage,
+  AuditInventoryPage,
+  AuditLogsPage,
+  AuditProfitLossPage,
+  AuditReportsPage,
+  AuditChartOfAccountsRedirect,
+} from './pages/audit/AuditModule';
+import { GlobalTimeline, ProjectDetail, ProjectsList } from './pages/projects/Projects';
+import { SiteToProjectRedirect } from './routes/SiteRedirects';
 import { MaterialDetail, MaterialsList, PresetsPage, ToolsList } from './pages/inventory/Inventory';
+import { InventoryDesk } from './pages/inventory/InventoryDesk';
 import {
   ChartOfAccountsPage,
   ExpenseAuditPage,
@@ -24,6 +37,10 @@ import {
   SaleBillsList,
   VendorsList,
 } from './pages/finance/Finance';
+import { FinanceHubPage } from './pages/finance/FinanceHubPage';
+import { FinanceAccountingDesk } from './pages/finance/FinanceAccountingDesk';
+import { FinanceBillingDesk } from './pages/finance/FinanceBillingDesk';
+import { FinancePartnersDesk } from './pages/finance/FinancePartnersDesk';
 import {
   ChannelPartnerDetail,
   ChannelPartnersFinanceListEnhanced,
@@ -37,14 +54,18 @@ import {
 import {
   AttendanceMonthlyPage,
   AttendancePage,
+  DeploymentPage,
   EmployeeDetail,
   EmployeesList,
+  HolidaysPage,
   PayrollPage,
   TaskDetail,
   TaskNew,
   TasksList,
 } from './pages/hr/HR';
+import { HRDesk } from './pages/hr/HRDesk';
 import { CompanyProfilePage, MasterDataPage, UserManagementPage } from './pages/settings/Settings';
+import { SettingsDesk } from './pages/settings/SettingsDesk';
 import { NotificationsPage } from './pages/utilities/Notifications';
 
 export default function App() {
@@ -54,6 +75,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
 
+        <Route path="sales" element={<SalesDesk />} />
         <Route path="sales/enquiries" element={<EnquiryList />} />
         <Route path="sales/enquiries/:id" element={<EnquiryDetail />} />
         <Route path="sales/agents" element={<AgentsList />} />
@@ -66,16 +88,22 @@ export default function App() {
         <Route path="sales/customers/:id" element={<CustomerDetail />} />
 
         <Route path="projects" element={<ProjectsList />} />
-        <Route path="projects/sites" element={<SitesList />} />
-        <Route path="projects/sites/:id" element={<SiteDetail />} />
+        <Route path="projects/active-sites" element={<ActiveSitesPage />} />
+        <Route path="projects/sites" element={<Navigate to="/projects?view=locations" replace />} />
+        <Route path="projects/sites/:id" element={<SiteToProjectRedirect />} />
         <Route path="projects/timeline" element={<GlobalTimeline />} />
         <Route path="projects/:id" element={<ProjectDetail />} />
 
+        <Route path="inventory" element={<InventoryDesk />} />
         <Route path="inventory/materials" element={<MaterialsList />} />
         <Route path="inventory/materials/:id" element={<MaterialDetail />} />
         <Route path="inventory/tools" element={<ToolsList />} />
         <Route path="inventory/presets" element={<PresetsPage />} />
 
+        <Route path="finance/hub" element={<FinanceHubPage />} />
+        <Route path="finance/billing" element={<FinanceBillingDesk />} />
+        <Route path="finance/partners-vendors" element={<FinancePartnersDesk />} />
+        <Route path="finance/accounting" element={<FinanceAccountingDesk />} />
         <Route path="finance/invoices" element={<InvoicesList />} />
         <Route path="finance/invoices/new" element={<InvoiceNew />} />
         <Route path="finance/invoices/:id" element={<InvoiceDetail />} />
@@ -94,11 +122,29 @@ export default function App() {
         <Route path="finance/chart-of-accounts" element={<ChartOfAccountsPage />} />
         <Route path="finance/expense-audit" element={<ExpenseAuditPage />} />
 
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="audit" element={<AuditDashboardPage />} />
+        <Route path="audit/chart-of-accounts" element={<AuditChartOfAccountsRedirect />} />
+        <Route path="audit/profit-loss" element={<AuditProfitLossPage />} />
+        <Route path="audit/inventory" element={<AuditInventoryPage />} />
+        <Route path="audit/debtors-creditors" element={<AuditDebtorsCreditorsPage />} />
+        <Route path="audit/gst" element={<AuditGstPage />} />
+        <Route path="audit/cash-bank" element={<AuditCashBankPage />} />
+        <Route path="audit/expenses" element={<AuditExpensesPage />} />
+        <Route path="audit/assets" element={<AuditAssetsPage />} />
+        <Route path="audit/logs" element={<AuditLogsPage />} />
+        <Route path="audit/reports" element={<AuditReportsPage />} />
+        <Route path="audit/data-flow" element={<AuditDataFlowPage />} />
+
+        <Route path="hr" element={<Navigate to="/hr/desk" replace />} />
+        <Route path="hr/desk" element={<HRDesk />} />
         <Route path="hr/employees" element={<EmployeesList />} />
         <Route path="hr/employees/:id" element={<EmployeeDetail />} />
         <Route path="hr/attendance" element={<AttendancePage />} />
         <Route path="hr/attendance/monthly" element={<AttendanceMonthlyPage />} />
         <Route path="hr/payroll" element={<PayrollPage />} />
+        <Route path="hr/holidays" element={<HolidaysPage />} />
+        <Route path="hr/deployment" element={<DeploymentPage />} />
         <Route path="hr/tasks" element={<TasksList />} />
         <Route path="hr/tasks/new" element={<TaskNew />} />
         <Route path="hr/tasks/:id" element={<TaskDetail />} />
@@ -106,6 +152,7 @@ export default function App() {
         <Route path="settings/master-data" element={<MasterDataPage />} />
         <Route path="settings/users" element={<UserManagementPage />} />
         <Route path="settings/company" element={<CompanyProfilePage />} />
+        <Route path="settings" element={<SettingsDesk />} />
 
         <Route path="utilities/notifications" element={<NotificationsPage />} />
       </Route>

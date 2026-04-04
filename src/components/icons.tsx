@@ -71,6 +71,22 @@ export function IconChevronLeft(p: SVGProps<SVGSVGElement> & { size?: number }) 
   );
 }
 
+export function IconChevronDown(p: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <Icon {...p}>
+      <path d="m6 9 6 6 6-6" />
+    </Icon>
+  );
+}
+
+export function IconChevronRight(p: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <Icon {...p}>
+      <path d="m9 18 6-6-6-6" />
+    </Icon>
+  );
+}
+
 export function IconSettings(p: SVGProps<SVGSVGElement> & { size?: number }) {
   return (
     <Icon {...p}>

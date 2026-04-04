@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Modal } from '../../components/Modal';
+import { ShellButton } from '../../components/ShellButton';
 import { useToast, useDataRefresh, useRole } from '../../contexts/AppProviders';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
 import { canDeleteUsers, canEditSettings } from '../../lib/permissions';
 import { runSeed } from '../../lib/seedData';
 import { generateId, getCollection, getItem, setCollection, setItem } from '../../lib/storage';
-import type { CompanyProfile, MasterData, User } from '../../types';
+import type { CompanyProfile, MasterData, MasterDataType, User } from '../../types';
+
+const MASTER_TYPES: MasterDataType[] = [
+  'PanelBrand',
+  'InverterBrand',
+  'StructureType',
+  'SystemCapacity',
+  'ExpenseMainCategory',
+  'ExpenseSubCategory',
+  'DocumentTemplate',
+];
 
 export function MasterDataPage() {
   const items = useLiveCollection<MasterData>('masterData');
@@ -36,12 +48,24 @@ export function MasterDataPage() {
     show('Added', 'success');
   }
 
+  const grouped = useMemo(() => {
+    const map = new Map<MasterDataType, MasterData[]>();
+    for (const t of MASTER_TYPES) map.set(t, []);
+    items.forEach((i) => {
+      const g = map.get(i.type) ?? [];
+      g.push(i);
+      map.set(i.type, g);
+    });
+    return MASTER_TYPES.map((t) => [t, map.get(t) ?? []] as const);
+  }, [items]);
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Master data</h1>
-      <form onSubmit={add} className="flex flex-wrap gap-2">
+      <p className="text-sm text-muted-foreground">Grouped tree by type (add values per category).</p>
+      <form onSubmit={add} className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3">
         <select className="rounded border px-3 py-2" value={type} onChange={(e) => setType(e.target.value as MasterData['type'])}>
-          {(['PanelBrand', 'InverterBrand', 'StructureType', 'SystemCapacity', 'ExpenseMainCategory'] as const).map((t) => (
+          {MASTER_TYPES.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>
@@ -52,13 +76,25 @@ export function MasterDataPage() {
           Add
         </button>
       </form>
-      <ul className="text-sm space-y-1">
-        {items.map((m) => (
-          <li key={m.id}>
-            {m.type}: {m.value}
-          </li>
+      <div className="space-y-4">
+        {grouped.map(([t, rows]) => (
+          <div key={t} className="rounded-lg border border-border bg-card">
+            <div className="border-b border-border bg-muted/80 px-4 py-2 text-sm font-semibold text-foreground">{t}</div>
+            <ul className="divide-y divide-border text-sm">
+              {rows.length === 0 && <li className="px-4 py-3 text-muted-foreground">No values</li>}
+              {rows
+                .slice()
+                .sort((a, b) => a.order - b.order || a.value.localeCompare(b.value))
+                .map((m) => (
+                  <li key={m.id} className="flex items-center justify-between px-4 py-2">
+                    <span>{m.value}</span>
+                    {m.parentId && <span className="text-xs text-muted-foreground">parent {m.parentId}</span>}
+                  </li>
+                ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
@@ -198,22 +234,46 @@ export function CompanyProfilePage() {
 
 function ResetDataSection() {
   const { show } = useToast();
+  const [open, setOpen] = useState(false);
+  const [confirmPhrase, setConfirmPhrase] = useState('');
+
+  function executeReset() {
+    if (confirmPhrase.trim() !== 'RESET') {
+      show('Type RESET exactly to confirm', 'error');
+      return;
+    }
+    runSeed();
+    show('Re-seeded', 'success');
+    window.location.reload();
+  }
+
   return (
     <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
       <h2 className="font-semibold text-destructive">Danger zone</h2>
       <p className="mt-1 text-sm text-destructive/90">Clear localStorage and reload seed data.</p>
-      <button
-        type="button"
-        className="mt-2 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground"
-        onClick={() => {
-          if (!window.confirm('Reset all data?')) return;
-          runSeed();
-          show('Re-seeded', 'success');
-          window.location.reload();
-        }}
-      >
-        Reset data & re-seed
-      </button>
+      <ShellButton type="button" variant="secondary" className="mt-2 border-destructive/50 text-destructive" onClick={() => setOpen(true)}>
+        Reset data & re-seed…
+      </ShellButton>
+      <Modal open={open} title="Confirm full data reset" onClose={() => setOpen(false)}>
+        <p className="mb-2 text-sm text-destructive">
+          This wipes local demo data and reloads the seed. Type <strong>RESET</strong> to proceed.
+        </p>
+        <input
+          className="input-shell mb-3 w-full"
+          autoComplete="off"
+          placeholder="Type RESET"
+          value={confirmPhrase}
+          onChange={(e) => setConfirmPhrase(e.target.value)}
+        />
+        <div className="flex flex-wrap gap-2">
+          <ShellButton type="button" variant="secondary" onClick={() => setOpen(false)}>
+            Cancel
+          </ShellButton>
+          <ShellButton type="button" variant="primary" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={executeReset}>
+            Reset and reload
+          </ShellButton>
+        </div>
+      </Modal>
     </div>
   );
 }

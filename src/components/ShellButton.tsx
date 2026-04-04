@@ -19,11 +19,11 @@ const variants: Record<Variant, string> = {
   destructive:
     'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
   outline:
-    'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
+    'border border-input bg-background shadow-sm hover:bg-muted hover:text-foreground',
   secondary:
     'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
-  ghost: 'hover:bg-accent hover:text-accent-foreground',
-  link: 'text-primary underline-offset-4 hover:underline',
+  ghost: 'hover:bg-muted/90 hover:text-foreground',
+  link: 'text-tertiary underline-offset-4 hover:text-primary hover:underline',
   accent: 'bg-warning text-warning-foreground shadow-sm hover:opacity-90',
 };
 
@@ -71,7 +71,7 @@ export function ShellIconButton({
       aria-label={label}
       title={label}
       className={cn(
-        'inline-flex h-10 w-10 items-center justify-center rounded-md border border-input bg-card text-card-foreground shadow-sm ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex h-10 w-10 items-center justify-center rounded-md border border-input bg-card text-card-foreground shadow-sm ring-offset-background transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
         className
       )}
       {...props}

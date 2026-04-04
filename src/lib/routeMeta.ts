@@ -1,7 +1,11 @@
 /** Labels for URL segments → readable breadcrumbs and page titles. */
 const SEGMENT_LABELS: Record<string, string> = {
   dashboard: 'Overview',
-  sales: 'Sales',
+  sales: 'Sales desk',
+  billing: 'Billing & payments',
+  'partners-vendors': 'Vendors & partners',
+  accounting: 'Chart & audit',
+  desk: 'Desk',
   enquiries: 'Enquiries',
   agents: 'Agents',
   quotations: 'Quotations',
@@ -9,9 +13,22 @@ const SEGMENT_LABELS: Record<string, string> = {
   new: 'New',
   preview: 'Preview',
   projects: 'Projects',
+  'active-sites': 'Active sites',
   sites: 'Sites',
   timeline: 'Timeline',
+  hub: 'Finance center',
+  analytics: 'Analytics',
+  audit: 'Audit',
+  'profit-loss': 'Profit & loss',
   inventory: 'Inventory',
+  'debtors-creditors': 'Debtors & creditors',
+  gst: 'GST',
+  'cash-bank': 'Cash & bank',
+  expenses: 'Expenses',
+  assets: 'Assets',
+  logs: 'Logs',
+  reports: 'Reports',
+  'data-flow': 'Data flow',
   materials: 'Materials',
   tools: 'Tools',
   presets: 'Presets',
@@ -39,9 +56,23 @@ const SEGMENT_LABELS: Record<string, string> = {
   notifications: 'Notifications',
 };
 
-function isLikelyId(segment: string): boolean {
+export function isLikelyId(segment: string): boolean {
   if (/^new$|^preview$/i.test(segment)) return false;
   return /_/.test(segment) && segment.length > 8;
+}
+
+/** Parent path for back navigation on detail / new / preview routes. */
+export function inferBackTo(pathname: string): string | undefined {
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length < 2) return undefined;
+  const last = parts[parts.length - 1]!;
+  if (last === 'new' || last === 'preview') {
+    return `/${parts.slice(0, -1).join('/')}`;
+  }
+  if (isLikelyId(last)) {
+    return `/${parts.slice(0, -1).join('/')}`;
+  }
+  return undefined;
 }
 
 export type BreadcrumbItem = { label: string; to?: string };
@@ -73,10 +104,5 @@ export function getPageMeta(pathname: string): {
   const breadcrumbs = buildBreadcrumbs(pathname);
   const last = breadcrumbs[breadcrumbs.length - 1];
   const title = last?.label ?? 'Page';
-  const parent = breadcrumbs[breadcrumbs.length - 2];
-  const subtitle =
-    parent && parent.label !== 'Home'
-      ? `${parent.label} · Solar operations`
-      : 'Solar operations hub';
-  return { title, subtitle, breadcrumbs };
+  return { title, subtitle: '', breadcrumbs };
 }

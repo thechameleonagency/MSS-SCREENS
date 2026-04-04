@@ -12,9 +12,15 @@ import { getPageMeta, type BreadcrumbItem } from '../lib/routeMeta';
 
 export type PageHeaderOverride = {
   title?: string;
+  /** Hidden from UI; kept for screen readers and meta. */
   subtitle?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: ReactNode;
+  /** Optional parent link; layout no longer renders a back control (breadcrumbs only). */
+  backTo?: string;
+  backLabel?: string;
+  /** Filters and toolbars — rendered below the breadcrumb row. */
+  toolbarBelow?: ReactNode;
 };
 
 type Ctx = {
@@ -42,6 +48,9 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
       subtitle: override?.subtitle ?? defaults.subtitle,
       breadcrumbs: override?.breadcrumbs ?? defaults.breadcrumbs,
       actions: override?.actions,
+      backTo: override?.backTo,
+      backLabel: override?.backLabel,
+      toolbarBelow: override?.toolbarBelow,
     }),
     [defaults, override]
   );
@@ -55,7 +64,12 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
   );
 }
 
-type MergedHeader = ReturnType<typeof getPageMeta> & { actions?: ReactNode };
+type MergedHeader = ReturnType<typeof getPageMeta> & {
+  actions?: ReactNode;
+  backTo?: string;
+  backLabel?: string;
+  toolbarBelow?: ReactNode;
+};
 const MergedPageHeaderContext = createContext<MergedHeader | null>(null);
 
 export function useMergedPageHeader() {
@@ -68,10 +82,10 @@ export function usePageHeader(patch: PageHeaderOverride) {
   const ctx = useContext(PageOverrideContext);
   if (!ctx) throw new Error('usePageHeader outside PageHeaderProvider');
   const { setPageOverride } = ctx;
-  const { title, subtitle, actions, breadcrumbs } = patch;
+  const { title, subtitle, actions, breadcrumbs, backTo, backLabel, toolbarBelow } = patch;
 
   useEffect(() => {
-    setPageOverride({ title, subtitle, actions, breadcrumbs });
+    setPageOverride({ title, subtitle, actions, breadcrumbs, backTo, backLabel, toolbarBelow });
     return () => setPageOverride(null);
-  }, [setPageOverride, title, subtitle, actions, breadcrumbs]);
+  }, [setPageOverride, title, subtitle, actions, breadcrumbs, backTo, backLabel, toolbarBelow]);
 }
