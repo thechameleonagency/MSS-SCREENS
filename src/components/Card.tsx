@@ -13,9 +13,9 @@ type CardProps = {
 
 const pad: Record<NonNullable<CardProps['padding']>, string> = {
   none: '',
-  sm: 'p-4',
-  md: 'p-6',
-  lg: 'p-6 sm:p-8',
+  sm: 'p-3',
+  md: 'p-4',
+  lg: 'p-4 sm:p-5',
 };
 
 export function Card({
@@ -48,14 +48,15 @@ export function CardHeader({
   action,
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   action?: ReactNode;
 }) {
+  const hasDesc = description != null && description !== '';
   return (
-    <div className="mb-4 flex flex-col space-y-1.5 sm:mb-5 sm:flex-row sm:items-start sm:justify-between">
-      <div className="space-y-1.5">
-        <h2 className="text-2xl font-semibold leading-none tracking-tight text-card-foreground">{title}</h2>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    <div className="mb-3 flex flex-col space-y-1 sm:flex-row sm:items-start sm:justify-between">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold leading-tight tracking-tight text-card-foreground sm:text-xl">{title}</h2>
+        {hasDesc && <div className="text-xs text-muted-foreground sm:text-sm">{description}</div>}
       </div>
       {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}
     </div>

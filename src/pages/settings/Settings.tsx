@@ -16,6 +16,7 @@ const MASTER_TYPES: MasterDataType[] = [
   'ExpenseMainCategory',
   'ExpenseSubCategory',
   'DocumentTemplate',
+  'EnquiryPipelineStage',
 ];
 
 export function MasterDataPage() {
@@ -60,10 +61,10 @@ export function MasterDataPage() {
   }, [items]);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Master data</h1>
-      <p className="text-sm text-muted-foreground">Grouped tree by type (add values per category).</p>
-      <form onSubmit={add} className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3">
+    <div className="min-w-0 space-y-3">
+      <h2 className="text-base font-semibold text-foreground">Master data</h2>
+      <p className="text-xs text-muted-foreground">Pick a type and add values — scroll cards horizontally on small screens.</p>
+      <form onSubmit={add} className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2 sm:p-3">
         <select className="rounded border px-3 py-2" value={type} onChange={(e) => setType(e.target.value as MasterData['type'])}>
           {MASTER_TYPES.map((t) => (
             <option key={t} value={t}>
@@ -76,19 +77,22 @@ export function MasterDataPage() {
           Add
         </button>
       </form>
-      <div className="space-y-4">
+      <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin] sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3">
         {grouped.map(([t, rows]) => (
-          <div key={t} className="rounded-lg border border-border bg-card">
-            <div className="border-b border-border bg-muted/80 px-4 py-2 text-sm font-semibold text-foreground">{t}</div>
-            <ul className="divide-y divide-border text-sm">
-              {rows.length === 0 && <li className="px-4 py-3 text-muted-foreground">No values</li>}
+          <div
+            key={t}
+            className="w-[min(100%,16rem)] shrink-0 rounded-lg border border-border bg-card sm:w-auto sm:min-w-0"
+          >
+            <div className="border-b border-border bg-muted/80 px-3 py-1.5 text-xs font-semibold text-foreground">{t}</div>
+            <ul className="max-h-48 divide-y divide-border overflow-y-auto text-xs sm:max-h-56">
+              {rows.length === 0 && <li className="px-3 py-2 text-muted-foreground">No values</li>}
               {rows
                 .slice()
                 .sort((a, b) => a.order - b.order || a.value.localeCompare(b.value))
                 .map((m) => (
-                  <li key={m.id} className="flex items-center justify-between px-4 py-2">
-                    <span>{m.value}</span>
-                    {m.parentId && <span className="text-xs text-muted-foreground">parent {m.parentId}</span>}
+                  <li key={m.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                    <span className="truncate">{m.value}</span>
+                    {m.parentId && <span className="shrink-0 text-[10px] text-muted-foreground">↳ {m.parentId}</span>}
                   </li>
                 ))}
             </ul>
@@ -125,8 +129,8 @@ export function UserManagementPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">User management</h1>
+    <div className="min-w-0 space-y-3">
+      <h2 className="text-base font-semibold text-foreground">User management</h2>
       <table className="w-full text-sm rounded-lg border border-border bg-card">
         <thead className="bg-muted">
           <tr>
@@ -148,7 +152,7 @@ export function UserManagementPage() {
                   onChange={(e) => setUserRole(u.id, e.target.value as User['role'])}
                   className="rounded border px-2 py-1 text-xs"
                 >
-                  {(['Super Admin', 'Admin', 'Management', 'Salesperson', 'Installation Team'] as const).map((r) => (
+                  {(['Super Admin', 'Admin', 'CEO', 'Management', 'Salesperson', 'Installation Team'] as const).map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
@@ -196,9 +200,9 @@ export function CompanyProfilePage() {
   const [form, setForm] = useState(profile);
 
   return (
-    <div className="mx-auto max-w-lg space-y-4">
-      <h1 className="text-2xl font-bold">Company profile</h1>
-      <div className="space-y-3 rounded-lg border bg-card p-4">
+    <div className="min-w-0 space-y-3">
+      <h2 className="text-base font-semibold text-foreground">Company profile</h2>
+      <div className="space-y-3 rounded-lg border bg-card p-3 sm:p-4">
         <label className="block text-sm">
           Name
           <input className="mt-1 w-full rounded border px-3 py-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -214,6 +218,25 @@ export function CompanyProfilePage() {
         <label className="block text-sm">
           Bank
           <textarea className="mt-1 w-full rounded border px-3 py-2" rows={2} value={form.bankAccount} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} />
+        </label>
+        <label className="block text-sm">
+          Quotation discount approval threshold (₹ on subtotal, 0 = off)
+          <input
+            type="number"
+            min={0}
+            className="mt-1 w-full rounded border px-3 py-2"
+            value={form.quotationDiscountApprovalThresholdInr ?? ''}
+            placeholder="e.g. 25000 — block saves at or above"
+            onChange={(e) =>
+              setForm({
+                ...form,
+                quotationDiscountApprovalThresholdInr: e.target.value === '' ? undefined : Number(e.target.value) || 0,
+              })
+            }
+          />
+          <span className="mt-1 block text-xs text-muted-foreground">
+            Non–Super Admin users cannot save a new quotation whose discount (₹ before GST) is at or above this amount.
+          </span>
         </label>
         <button
           type="button"
@@ -274,6 +297,17 @@ function ResetDataSection() {
           </ShellButton>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+export function CompanyAndMasterPage() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <CompanyProfilePage />
+        <MasterDataPage />
+      </div>
     </div>
   );
 }

@@ -74,58 +74,99 @@ export function MaterialsList() {
 
   const visible = catFilter ? materials.filter((m) => m.category === catFilter) : materials;
 
+  const totalUnits = useMemo(() => visible.reduce((s, m) => s + m.currentStock, 0), [visible]);
+  const stockValue = useMemo(() => visible.reduce((s, m) => s + m.currentStock * m.purchaseRate, 0), [visible]);
+
+  const byCategory = useMemo(() => {
+    const map = new Map<string, Material[]>();
+    for (const m of visible) {
+      const g = map.get(m.category) ?? [];
+      g.push(m);
+      map.set(m.category, g);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [visible]);
+
   return (
     <div className="space-y-4">
-      <Card padding="md">
-        <label className="text-sm text-muted-foreground">
-          Filter by category
-          <select className="select-shell mt-1 max-w-xs" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
-            <option value="">All categories</option>
-            {MATERIAL_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-      </Card>
-      <Card padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/90">
-              <tr>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Name</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Category</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Stock</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Min</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Retail</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((m) => (
-                <tr
-                  key={m.id}
-                  className={`border-t border-border transition hover:bg-muted/80 ${m.currentStock <= m.minStock ? 'bg-warning/10' : ''}`}
-                >
-                  <td className="px-4 py-3 font-medium text-foreground">{m.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.category}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {m.currentStock} {m.purchaseUnit}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.minStock}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatINRDecimal(m.saleRateRetail)}</td>
-                  <td className="px-4 py-3">
-                    <Link className="font-medium text-primary hover:text-primary/90" to={`/inventory/materials/${m.id}`}>
-                      View
-                    </Link>
-                  </td>
-                </tr>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card padding="md">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Items shown</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground">{visible.length}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Total units (qty)</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground">{totalUnits.toLocaleString('en-IN')}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Stock value (at cost)</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground">{formatINRDecimal(stockValue)}</p>
+        </Card>
+        <Card padding="md">
+          <label className="text-xs font-medium uppercase text-muted-foreground">
+            Filter by category
+            <select className="select-shell mt-2 w-full" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
+              <option value="">All categories</option>
+              {MATERIAL_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+            </select>
+          </label>
+        </Card>
+      </div>
+      {byCategory.map(([cat, rows]) => (
+        <Card key={cat} padding="none" className="overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
+            <h3 className="text-sm font-semibold text-foreground">
+              {cat}{' '}
+              <span className="font-normal text-muted-foreground">({rows.length} items)</span>
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Σ units {rows.reduce((s, m) => s + m.currentStock, 0).toLocaleString('en-IN')}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-border bg-muted/40">
+                <tr>
+                  <th className="px-4 py-2.5 font-semibold text-muted-foreground">Name</th>
+                  <th className="px-4 py-2.5 font-semibold text-muted-foreground">Spec / size</th>
+                  <th className="px-4 py-2.5 font-semibold text-muted-foreground">Stock</th>
+                  <th className="px-4 py-2.5 font-semibold text-muted-foreground">Min</th>
+                  <th className="px-4 py-2.5 font-semibold text-muted-foreground">Retail</th>
+                  <th className="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((m) => (
+                  <tr
+                    key={m.id}
+                    className={`border-t border-border transition hover:bg-muted/80 ${m.currentStock <= m.minStock ? 'bg-warning/10' : ''}`}
+                  >
+                    <td className="px-4 py-2.5 font-medium text-foreground">{m.name}</td>
+                    <td className="max-w-[10rem] truncate px-4 py-2.5 text-xs text-muted-foreground">{m.sizeSpec || '—'}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      {m.currentStock} {m.issueUnit}
+                      {m.purchaseUnit !== m.issueUnit && (
+                        <span className="block text-[10px] text-muted-foreground/80">store: {m.purchaseUnit}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{m.minStock}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{formatINRDecimal(m.saleRateRetail)}</td>
+                    <td className="px-4 py-2.5">
+                      <Link className="font-medium text-primary hover:text-primary/90" to={`/inventory/materials/${m.id}`}>
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ))}
       <Modal open={open} title="Add material" onClose={() => setOpen(false)} wide>
         <form className="grid gap-2 sm:grid-cols-2" onSubmit={save}>
           <label className="sm:col-span-2">
@@ -601,7 +642,11 @@ export function ToolsList() {
     const list = getCollection<Tool>('tools');
     setCollection(
       'tools',
-      list.map((t) => (t.id === id ? { ...t, condition: c, lastUpdated: new Date().toISOString() } : t))
+      list.map((t) => {
+        if (t.id !== id) return t;
+        const lifecycleStatus = c === 'Not Working' ? ('Under Repair' as const) : t.lifecycleStatus;
+        return { ...t, condition: c, lifecycleStatus, lastUpdated: new Date().toISOString() };
+      })
     );
     bump();
   }
@@ -609,6 +654,10 @@ export function ToolsList() {
   function recordIssue() {
     if (!selTool || !issueEmp) {
       show('Select employee', 'error');
+      return;
+    }
+    if (selTool.condition === 'Not Working' || selTool.lifecycleStatus === 'Under Repair') {
+      show('Tool is not working or under repair — cannot issue until verified.', 'error');
       return;
     }
     const list = getCollection<Tool>('tools');
@@ -674,8 +723,34 @@ export function ToolsList() {
     show('Tool returned', 'success');
   }
 
+  const toolStats = useMemo(() => {
+    const total = tools.length;
+    const avail = tools.filter((t) => (t.lifecycleStatus ?? 'Available') === 'Available').length;
+    const inUse = tools.filter((t) => t.lifecycleStatus === 'In Use').length;
+    const repair = tools.filter((t) => t.lifecycleStatus === 'Under Repair').length;
+    return { total, avail, inUse, repair };
+  }, [tools]);
+
   return (
     <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card padding="md">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Total tools</p>
+          <p className="mt-1 text-2xl font-semibold">{toolStats.total}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Available</p>
+          <p className="mt-1 text-2xl font-semibold text-primary">{toolStats.avail}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs font-medium uppercase text-muted-foreground">In use</p>
+          <p className="mt-1 text-2xl font-semibold">{toolStats.inUse}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Under repair</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-700 dark:text-amber-400">{toolStats.repair}</p>
+        </Card>
+      </div>
       <Card padding="none" className="overflow-hidden">
         <table className="w-full overflow-hidden text-left text-sm">
           <thead className="border-b border-border bg-muted/90">
@@ -696,7 +771,7 @@ export function ToolsList() {
                 <td className="px-3 py-2 text-xs">{t.lifecycleStatus ?? '—'}</td>
                 <td className="px-3 py-2">
                   <select value={t.condition} onChange={(e) => setCondition(t.id, e.target.value as Tool['condition'])} className="rounded border px-2 py-1 text-xs">
-                    {(['Good', 'Fair', 'Poor', 'Under Repair', 'Damaged'] as const).map((c) => (
+                    {(['Good', 'Minor Damage', 'Major Damage', 'Not Working'] as const).map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
@@ -840,6 +915,7 @@ export function PresetsPage() {
   const presets = useLiveCollection<Preset>('presets');
   const materials = useLiveCollection<Material>('materials');
   const [type, setType] = useState<Preset['type']>('Quotation');
+  const [purposeFilter, setPurposeFilter] = useState<'all' | 'quotation' | 'invoice'>('all');
   const { bump } = useDataRefresh();
   const { show } = useToast();
   const [open, setOpen] = useState(false);
@@ -885,6 +961,20 @@ export function PresetsPage() {
     show('Preset saved', 'success');
   }
 
+  const summary = useMemo(() => {
+    const res = presets.filter((p) => p.capacityCategory === 'Residential').length;
+    const com = presets.filter((p) => p.capacityCategory === 'Commercial').length;
+    const ind = presets.filter((p) => p.capacityCategory === 'Industrial').length;
+    return { total: presets.length, res, com, ind };
+  }, [presets]);
+
+  const typeFiltered = useMemo(() => {
+    let list = presets.filter((p) => p.type === type);
+    if (purposeFilter === 'quotation') list = list.filter((p) => p.type === 'Quotation');
+    if (purposeFilter === 'invoice') list = list.filter((p) => p.type === 'Invoice');
+    return list;
+  }, [presets, type, purposeFilter]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between gap-2">
@@ -892,6 +982,24 @@ export function PresetsPage() {
         <button type="button" className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground" onClick={() => setOpen(true)}>
           Add preset
         </button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card padding="md">
+          <p className="text-xs uppercase text-muted-foreground">Total presets</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.total}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs uppercase text-muted-foreground">Residential</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.res}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs uppercase text-muted-foreground">Commercial</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.com}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs uppercase text-muted-foreground">Industrial</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.ind}</p>
+        </Card>
       </div>
       <div className="flex flex-wrap gap-2">
         {(['Quotation', 'Invoice', 'SiteChecklist'] as const).map((t) => (
@@ -905,27 +1013,63 @@ export function PresetsPage() {
           </button>
         ))}
       </div>
-      <ul className="space-y-2">
-        {presets
-          .filter((p) => p.type === type)
-          .map((p) => (
-            <li key={p.id} className="rounded-lg border border-border bg-card p-3 text-sm">
-              <strong>{p.name}</strong> — {p.description}
-              {(p.capacityCategory || p.capacityKW) && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {p.capacityCategory} {p.capacityKW != null ? `· ${p.capacityKW} kW` : ''}
-                  {p.panelBrand && ` · ${p.panelBrand}`}
-                </p>
-              )}
-              <ul className="mt-1 text-xs text-muted-foreground">
-                {p.items.map((it, i) => (
-                  <li key={i}>
-                    {materials.find((m) => m.id === it.materialId)?.name} × {it.quantity}
-                  </li>
-                ))}
-              </ul>
-            </li>
+      {(type === 'Quotation' || type === 'Invoice') && (
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ['all', 'All'],
+              ['quotation', 'For quotations'],
+              ['invoice', 'For invoice & inventory matching'],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                purposeFilter === k ? 'bg-secondary text-secondary-foreground' : 'bg-muted text-muted-foreground'
+              }`}
+              onClick={() => setPurposeFilter(k)}
+            >
+              {label}
+            </button>
           ))}
+        </div>
+      )}
+      <ul className="space-y-2">
+        {typeFiltered.map((p) => (
+          <li key={p.id} className="rounded-lg border border-border bg-card p-4 text-sm shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <strong className="text-foreground">{p.name}</strong>
+                <p className="mt-0.5 text-muted-foreground">{p.description}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                {p.type === 'Invoice' ? 'Invoice & inventory' : p.type}
+              </span>
+            </div>
+            {(p.capacityCategory || p.capacityKW != null) && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{p.capacityKW != null ? `${p.capacityKW} kW` : ''}</span>
+                {p.capacityCategory && ` · ${p.capacityCategory}`}
+                {p.panelBrand && ` · Panels: ${p.panelBrand}`}
+                {p.inverterBrand && ` · Inverter: ${p.inverterBrand}`}
+                {p.structureType && ` · Structure: ${p.structureType}`}
+              </p>
+            )}
+            <p className="mt-1 text-xs font-medium text-tertiary">{p.items.length} line items in BOM</p>
+            {p.estimatedCost != null && (
+              <p className="text-xs text-muted-foreground">Est. cost {formatINRDecimal(p.estimatedCost)}</p>
+            )}
+            <ul className="mt-2 max-h-28 overflow-y-auto text-xs text-muted-foreground">
+              {p.items.slice(0, 8).map((it, i) => (
+                <li key={i}>
+                  {materials.find((m) => m.id === it.materialId)?.name} × {it.quantity}
+                </li>
+              ))}
+              {p.items.length > 8 && <li>… +{p.items.length - 8} more</li>}
+            </ul>
+          </li>
+        ))}
       </ul>
       <Modal open={open} title="New preset" onClose={() => setOpen(false)} wide>
         <form className="space-y-3" onSubmit={savePreset}>

@@ -1,11 +1,10 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { AgentDetail, AgentsList } from './pages/sales/Agents';
 import { CustomerDetail, CustomersList } from './pages/sales/Customers';
 import { EnquiryDetail, EnquiryList } from './pages/sales/Enquiries';
 import { QuotationDetail, QuotationNew, QuotationPreview, QuotationsList } from './pages/sales/Quotations';
-import { SalesDesk } from './pages/sales/SalesDesk';
 import { ActiveSitesPage } from './pages/operations/ActiveSitesPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import {
@@ -22,7 +21,8 @@ import {
   AuditReportsPage,
   AuditChartOfAccountsRedirect,
 } from './pages/audit/AuditModule';
-import { GlobalTimeline, ProjectDetail, ProjectsList } from './pages/projects/Projects';
+import { ProjectDetail, ProjectsList } from './pages/projects/Projects';
+import { ProjectSummariesPage } from './pages/projects/ProjectSummaries';
 import { SiteToProjectRedirect } from './routes/SiteRedirects';
 import { MaterialDetail, MaterialsList, PresetsPage, ToolsList } from './pages/inventory/Inventory';
 import { InventoryDesk } from './pages/inventory/InventoryDesk';
@@ -38,6 +38,7 @@ import {
   VendorsList,
 } from './pages/finance/Finance';
 import { FinanceHubPage } from './pages/finance/FinanceHubPage';
+import { FinanceTransactionsPage } from './pages/finance/FinanceTransactionsPage';
 import { FinanceAccountingDesk } from './pages/finance/FinanceAccountingDesk';
 import { FinanceBillingDesk } from './pages/finance/FinanceBillingDesk';
 import { FinancePartnersDesk } from './pages/finance/FinancePartnersDesk';
@@ -63,10 +64,15 @@ import {
   TaskNew,
   TasksList,
 } from './pages/hr/HR';
-import { HRDesk } from './pages/hr/HRDesk';
-import { CompanyProfilePage, MasterDataPage, UserManagementPage } from './pages/settings/Settings';
+import { CompanyAndMasterPage, UserManagementPage } from './pages/settings/Settings';
 import { SettingsDesk } from './pages/settings/SettingsDesk';
 import { NotificationsPage } from './pages/utilities/Notifications';
+
+function LegacySalesCustomerRedirect() {
+  const { id } = useParams();
+  if (!id) return <Navigate to="/finance/customers" replace />;
+  return <Navigate to={`/finance/customers/${id}`} replace />;
+}
 
 export default function App() {
   return (
@@ -75,7 +81,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
 
-        <Route path="sales" element={<SalesDesk />} />
+        <Route path="sales" element={<Navigate to="/sales/enquiries" replace />} />
         <Route path="sales/enquiries" element={<EnquiryList />} />
         <Route path="sales/enquiries/:id" element={<EnquiryDetail />} />
         <Route path="sales/agents" element={<AgentsList />} />
@@ -84,23 +90,29 @@ export default function App() {
         <Route path="sales/quotations/new" element={<QuotationNew />} />
         <Route path="sales/quotations/:id" element={<QuotationDetail />} />
         <Route path="sales/quotations/:id/preview" element={<QuotationPreview />} />
-        <Route path="sales/customers" element={<CustomersList />} />
-        <Route path="sales/customers/:id" element={<CustomerDetail />} />
+        <Route path="sales/customers" element={<Navigate to="/finance/customers" replace />} />
+        <Route path="sales/customers/:id" element={<LegacySalesCustomerRedirect />} />
 
         <Route path="projects" element={<ProjectsList />} />
         <Route path="projects/active-sites" element={<ActiveSitesPage />} />
-        <Route path="projects/sites" element={<Navigate to="/projects?view=locations" replace />} />
+        <Route path="projects/summaries" element={<ProjectSummariesPage />} />
+        <Route path="projects/sites" element={<Navigate to="/projects" replace />} />
         <Route path="projects/sites/:id" element={<SiteToProjectRedirect />} />
-        <Route path="projects/timeline" element={<GlobalTimeline />} />
+        <Route path="projects/timeline" element={<Navigate to="/projects/summaries" replace />} />
         <Route path="projects/:id" element={<ProjectDetail />} />
 
         <Route path="inventory" element={<InventoryDesk />} />
         <Route path="inventory/materials" element={<MaterialsList />} />
         <Route path="inventory/materials/:id" element={<MaterialDetail />} />
         <Route path="inventory/tools" element={<ToolsList />} />
-        <Route path="inventory/presets" element={<PresetsPage />} />
+        <Route path="inventory/presets" element={<Navigate to="/presets" replace />} />
+
+        <Route path="presets" element={<PresetsPage />} />
 
         <Route path="finance/hub" element={<FinanceHubPage />} />
+        <Route path="finance/customers" element={<CustomersList />} />
+        <Route path="finance/customers/:id" element={<CustomerDetail />} />
+        <Route path="finance/transactions" element={<FinanceTransactionsPage />} />
         <Route path="finance/billing" element={<FinanceBillingDesk />} />
         <Route path="finance/partners-vendors" element={<FinancePartnersDesk />} />
         <Route path="finance/accounting" element={<FinanceAccountingDesk />} />
@@ -136,8 +148,7 @@ export default function App() {
         <Route path="audit/reports" element={<AuditReportsPage />} />
         <Route path="audit/data-flow" element={<AuditDataFlowPage />} />
 
-        <Route path="hr" element={<Navigate to="/hr/desk" replace />} />
-        <Route path="hr/desk" element={<HRDesk />} />
+        <Route path="hr" element={<Navigate to="/hr/employees" replace />} />
         <Route path="hr/employees" element={<EmployeesList />} />
         <Route path="hr/employees/:id" element={<EmployeeDetail />} />
         <Route path="hr/attendance" element={<AttendancePage />} />
@@ -149,9 +160,9 @@ export default function App() {
         <Route path="hr/tasks/new" element={<TaskNew />} />
         <Route path="hr/tasks/:id" element={<TaskDetail />} />
 
-        <Route path="settings/master-data" element={<MasterDataPage />} />
+        <Route path="settings/master-data" element={<CompanyAndMasterPage />} />
         <Route path="settings/users" element={<UserManagementPage />} />
-        <Route path="settings/company" element={<CompanyProfilePage />} />
+        <Route path="settings/company" element={<CompanyAndMasterPage />} />
         <Route path="settings" element={<SettingsDesk />} />
 
         <Route path="utilities/notifications" element={<NotificationsPage />} />

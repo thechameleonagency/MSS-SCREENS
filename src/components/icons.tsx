@@ -1,7 +1,7 @@
 import type { SVGProps } from 'react';
 
 function Icon(props: SVGProps<SVGSVGElement> & { size?: number }) {
-  const { size = 20, className = '', ...rest } = props;
+  const { size = 20, className = '', children, ...rest } = props;
   return (
     <svg
       width={size}
@@ -15,7 +15,9 @@ function Icon(props: SVGProps<SVGSVGElement> & { size?: number }) {
       className={className}
       aria-hidden
       {...rest}
-    />
+    >
+      {children}
+    </svg>
   );
 }
 
@@ -46,10 +48,40 @@ export function IconBell(p: SVGProps<SVGSVGElement> & { size?: number }) {
   );
 }
 
+/** Bell inside a round stroke — for header notifications */
+export function IconBellRound(p: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <Icon {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9 10a3 3 0 0 1 6 0c0 3.5 1.75 5.25 1.75 5.25H7.25S9 13.5 9 10z" />
+      <path d="M10 18h4" />
+    </Icon>
+  );
+}
+
 export function IconPlus(p: SVGProps<SVGSVGElement> & { size?: number }) {
   return (
     <Icon {...p}>
       <path d="M12 5v14M5 12h14" />
+    </Icon>
+  );
+}
+
+/** Simple map / location pin (universal “pin this” affordance). */
+export function IconPin(p: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <Icon {...p}>
+      <path d="M12 21.5c-2.7-2.15-5-5.35-5-8.75a5 5 0 0 1 10 0c0 3.4-2.3 6.6-5 8.75Z" />
+      <circle cx="12" cy="10.5" r="1.75" />
+    </Icon>
+  );
+}
+
+/** Bookmark-style “pin to nav” — clearer than a map pin for saving shortcuts. */
+export function IconNavPin(p: SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <Icon {...p}>
+      <path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15l-6-3.5L6 19V4Z" />
     </Icon>
   );
 }

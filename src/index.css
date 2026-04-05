@@ -10,17 +10,17 @@
   --card-foreground: 222 22% 18%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 22% 18%;
-  /* Primary: deep ocean blue — main CTAs only */
-  --primary: 217 78% 42%;
+  /* Primary: deeper blue — main CTAs */
+  --primary: 217 72% 34%;
   --primary-foreground: 0 0% 100%;
   /* Secondary: cool slate — chips, secondary panels */
   --secondary: 218 20% 92%;
   --secondary-foreground: 222 30% 26%;
-  /* Tertiary: teal — nav active, links on hover, accents (not the same as primary) */
-  --tertiary: 168 55% 36%;
+  /* Tertiary: blue accent for links / hovers (aligned with primary family) */
+  --tertiary: 217 70% 38%;
   --tertiary-foreground: 0 0% 100%;
-  --tertiary-muted: 168 35% 94%;
-  --tertiary-muted-foreground: 168 45% 24%;
+  --tertiary-muted: 217 40% 94%;
+  --tertiary-muted-foreground: 217 45% 28%;
   --muted: 220 14% 93%;
   --muted-foreground: 220 9% 46%;
   /* Interactive hover: neutral gray (avoid “everything turns blue”) */
@@ -35,19 +35,19 @@
   --success-foreground: 0 0% 100%;
   --border: 220 13% 88%;
   --input: 220 13% 88%;
-  --ring: 168 45% 38%;
+  --ring: 217 65% 42%;
   --radius: 0.5rem;
   --sidebar-background: 222 18% 99%;
   --sidebar-foreground: 220 12% 38%;
-  --sidebar-primary: 217 78% 42%;
+  --sidebar-primary: 217 72% 34%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 168 32% 92%;
-  --sidebar-accent-foreground: 168 50% 22%;
-  --sidebar-hover: 220 12% 93%;
+  --sidebar-accent: 217 55% 91%;
+  --sidebar-accent-foreground: 217 65% 22%;
+  --sidebar-hover: 217 40% 94%;
   --sidebar-border: 220 13% 90%;
-  --sidebar-ring: 168 45% 38%;
+  --sidebar-ring: 217 65% 42%;
   --chart-revenue: 217 78% 42%;
-  --chart-cost: 168 45% 38%;
+  --chart-cost: 217 55% 42%;
 }
 
 .dark {
@@ -79,11 +79,11 @@
   --sidebar-foreground: 215 14% 72%;
   --sidebar-primary: 215 85% 58%;
   --sidebar-primary-foreground: 222 22% 12%;
-  --sidebar-accent: 168 22% 18%;
-  --sidebar-accent-foreground: 168 40% 82%;
-  --sidebar-hover: 217 14% 18%;
+  --sidebar-accent: 217 35% 22%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --sidebar-hover: 217 22% 18%;
   --sidebar-border: 217 16% 22%;
-  --sidebar-ring: 168 42% 48%;
+  --sidebar-ring: 215 70% 55%;
   --chart-revenue: 215 85% 58%;
   --chart-cost: 168 42% 48%;
 }
@@ -101,6 +101,12 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
+  }
+  /** Sticks to top of main scroll area (flush under app header). */
+  .sticky-page-subnav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
 }
 

@@ -1,83 +1,78 @@
 import { Link } from 'react-router-dom';
-import { Card } from '../../components/Card';
+import { Card, CardHeader } from '../../components/Card';
+import { DataTableShell, dataTableClasses } from '../../components/DataTableShell';
+import { ShellButton } from '../../components/ShellButton';
 import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
+import {
+  aggregateGstActivity,
+  buildProfitLossStatement,
+  cashBankByMode,
+  creditorsFromSuppliers,
+  debtorsByCustomer,
+  exportAuditCsv,
+  inventoryValuation,
+  rollupExpensesByTaxonomyKey,
+  toolsAsFixedAssets,
+} from '../../lib/financeInsights';
 import { formatINRDecimal } from '../../lib/helpers';
-import type { AuditLogEntry, CompanyExpense, Invoice, Material, Supplier } from '../../types';
+import type {
+  AuditLogEntry,
+  CompanyExpense,
+  Customer,
+  Enquiry,
+  IncomeRecord,
+  Invoice,
+  Material,
+  Payment,
+  Project,
+  PurchaseBill,
+  Quotation,
+  SaleBill,
+  Supplier,
+  Task,
+  Tool,
+} from '../../types';
+import { getItem } from '../../lib/storage';
+import type { CompanyProfile } from '../../types';
 
 const LINKS: { to: string; label: string; note: string }[] = [
-  { to: '/audit/chart-of-accounts', label: 'Chart of accounts', note: 'Hierarchy (links to finance COA)' },
-  { to: '/audit/profit-loss', label: 'Profit & loss', note: 'Monthly prototype statement' },
-  { to: '/audit/inventory', label: 'Inventory audit', note: 'Stock valuation snapshot' },
-  { to: '/audit/debtors-creditors', label: 'Debtors & creditors', note: 'Outstanding receivables / payables' },
-  { to: '/audit/gst', label: 'GST compliance', note: 'Prototype — not filing ready' },
-  { to: '/audit/cash-bank', label: 'Cash & bank', note: 'Ledger placeholder' },
-  { to: '/audit/expenses', label: 'Expense audit', note: 'Category roll-up' },
-  { to: '/audit/assets', label: 'Fixed assets', note: 'Register placeholder' },
+  { to: '/audit/chart-of-accounts', label: 'Chart of accounts', note: 'Opens finance COA (read-only redirect)' },
+  { to: '/audit/profit-loss', label: 'Profit & loss', note: 'Receipts, other income, expenses' },
+  { to: '/audit/inventory', label: 'Inventory audit', note: 'SKU valuation & low-stock' },
+  { to: '/audit/debtors-creditors', label: 'Debtors & creditors', note: 'AR by customer · AP by vendor' },
+  { to: '/audit/gst', label: 'GST activity', note: 'Output vs input from stored breakups' },
+  { to: '/audit/cash-bank', label: 'Cash & bank modes', note: 'Inflows/outflows by instrument' },
+  { to: '/audit/expenses', label: 'Expense taxonomy', note: 'Roll-up by unified taxonomy key' },
+  { to: '/audit/assets', label: 'Fixed assets (tools)', note: 'NBV estimate from useful life' },
   { to: '/audit/logs', label: 'Audit logs', note: 'Recent mutations' },
-  { to: '/audit/reports', label: 'Reports & export', note: 'Batch export' },
-  { to: '/audit/data-flow', label: 'Data flow', note: 'How entities link' },
+  { to: '/audit/reports', label: 'Reports & export', note: 'CSV bundles' },
+  { to: '/audit/data-flow', label: 'Data flow', note: 'Counts & relationships' },
 ];
 
 function AuditHome() {
-  usePageHeader({ title: 'Audit suite', subtitle: 'Compliance and reporting (prototype)' });
+  const projects = useLiveCollection<Project>('projects');
+  const invoices = useLiveCollection<Invoice>('invoices');
+  const expenses = useLiveCollection<CompanyExpense>('companyExpenses');
+  usePageHeader({ title: 'Financial audit suite', subtitle: 'Ledgers, tax, and reconciliation views over live data' });
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {LINKS.map((l) => (
-        <Link key={l.to} to={l.to}>
-          <Card padding="md" interactive>
-            <h3 className="font-semibold text-primary">{l.label}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{l.note}</p>
-          </Card>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-function StubPage({
-  title,
-  body,
-  checklist,
-  related,
-}: {
-  title: string;
-  body: string;
-  checklist?: string[];
-  related?: { to: string; label: string }[];
-}) {
-  usePageHeader({ title, subtitle: 'Audit module — prototype' });
-  return (
-    <div className="space-y-4">
-      <Card padding="md">
-        <p className="text-sm text-muted-foreground">{body}</p>
-        {checklist && checklist.length > 0 && (
-          <div className="mt-4 border-t border-border pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Checklist</p>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-foreground">
-              {checklist.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {related && related.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {related.map((r) => (
-              <Link
-                key={r.to}
-                to={r.to}
-                className="inline-flex h-10 items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/80"
-              >
-                {r.label}
-              </Link>
-            ))}
-          </div>
-        )}
-        <Link className="mt-4 inline-block text-sm font-medium text-primary" to="/audit">
-          ← Audit home
-        </Link>
+    <div className="space-y-6">
+      <Card padding="md" variant="feature">
+        <CardHeader
+          title="Coverage snapshot"
+          description={`${projects.length} projects · ${invoices.length} invoices · ${expenses.length} company expenses — open a tile for detail.`}
+        />
       </Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {LINKS.map((l) => (
+          <Link key={l.to} to={l.to}>
+            <Card padding="md" interactive className="h-full">
+              <h3 className="font-semibold text-primary">{l.label}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{l.note}</p>
+            </Card>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
@@ -87,11 +82,11 @@ export function AuditDashboardPage() {
 }
 
 export function AuditChartOfAccountsRedirect() {
-  usePageHeader({ title: 'Chart of accounts', subtitle: 'Redirecting…' });
+  usePageHeader({ title: 'Chart of accounts', subtitle: 'Maintained under Finance' });
   return (
     <Card padding="md">
-      <p className="text-sm">Use the finance chart of accounts for editing.</p>
-      <Link className="mt-2 inline-block font-medium text-primary" to="/finance/chart-of-accounts">
+      <p className="text-sm text-muted-foreground">Chart of accounts is edited from the finance desk. No duplicate editor here.</p>
+      <Link className="mt-3 inline-block font-medium text-primary" to="/finance/chart-of-accounts">
         Open chart of accounts
       </Link>
     </Card>
@@ -100,117 +95,366 @@ export function AuditChartOfAccountsRedirect() {
 
 export function AuditProfitLossPage() {
   const invoices = useLiveCollection<Invoice>('invoices');
-  const received = invoices.reduce((s, i) => s + i.received, 0);
+  const saleBills = useLiveCollection<SaleBill>('saleBills');
   const companyExpenses = useLiveCollection<CompanyExpense>('companyExpenses');
-  const expenseSum = companyExpenses.reduce((s, e) => s + e.amount, 0);
-  usePageHeader({ title: 'Profit & loss', subtitle: 'Simplified from invoices + expenses' });
+  const incomeRecords = useLiveCollection<IncomeRecord>('incomeRecords');
+  const pnl = buildProfitLossStatement({ invoices, saleBills, companyExpenses, incomeRecords });
+  usePageHeader({ title: 'Profit & loss', subtitle: 'Cash-basis receipts vs company expenses (prototype statement)' });
   return (
-    <Card padding="md" className="space-y-2 text-sm">
-      <p>Revenue (received on invoices): {formatINRDecimal(received)}</p>
-      <p>Expenses (company): {formatINRDecimal(expenseSum)}</p>
-      <p className="font-semibold">Net (rough): {formatINRDecimal(received - expenseSum)}</p>
-      <Link className="inline-block pt-4 text-primary" to="/audit">
-        ← Back
+    <div className="space-y-4">
+      <Card padding="md">
+        <p className="text-sm text-muted-foreground">
+          Revenue uses <strong>received</strong> on invoices and sale bills (not only invoiced). Other income uses the income register
+          excluding outgoing lines. This is a management view, not statutory books.
+        </p>
+        <ul className="mt-4 space-y-2 text-sm">
+          {pnl.sections.map((s) => (
+            <li key={s.label} className="flex justify-between gap-4 border-b border-border/60 py-2">
+              <span>{s.label}</span>
+              <span className="shrink-0 font-semibold tabular-nums">{formatINRDecimal(s.amount)}</span>
+            </li>
+          ))}
+          <li className="flex justify-between gap-4 pt-2 text-base font-bold">
+            <span>Net (indicative)</span>
+            <span className="tabular-nums">{formatINRDecimal(pnl.netIncome)}</span>
+          </li>
+        </ul>
+      </Card>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
       </Link>
-    </Card>
+    </div>
   );
 }
 
 export function AuditInventoryPage() {
   const materials = useLiveCollection<Material>('materials');
-  const value = materials.reduce((s, m) => s + m.currentStock * m.purchaseRate, 0);
+  const { rows, total } = inventoryValuation(materials);
   usePageHeader({ title: 'Inventory audit', subtitle: 'Stock × purchase rate' });
   return (
-    <Card padding="md" className="text-sm">
-      <p>SKUs: {materials.length}</p>
-      <p className="font-semibold">Estimated value: {formatINRDecimal(value)}</p>
-      <Link className="mt-4 inline-block text-primary" to="/audit">
-        ← Back
+    <div className="space-y-4">
+      <Card padding="md">
+        <p className="text-sm">
+          SKUs: <strong>{materials.length}</strong> · Total value: <strong>{formatINRDecimal(total)}</strong>
+        </p>
+      </Card>
+      <DataTableShell>
+        <table className={dataTableClasses}>
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Category</th>
+              <th className="text-right">Qty</th>
+              <th className="text-right">Rate</th>
+              <th className="text-right">Value</th>
+              <th>Min stock flag</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 120).map((r) => (
+              <tr key={r.id}>
+                <td>{r.name}</td>
+                <td className="text-muted-foreground">{r.category}</td>
+                <td className="text-right tabular-nums">{r.qty}</td>
+                <td className="text-right tabular-nums">{formatINRDecimal(r.rate)}</td>
+                <td className="text-right font-medium tabular-nums">{formatINRDecimal(r.value)}</td>
+                <td>{r.belowMin ? <span className="text-amber-700 dark:text-amber-300">Low</span> : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </DataTableShell>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
       </Link>
-    </Card>
+    </div>
   );
 }
 
 export function AuditDebtorsCreditorsPage() {
   const invoices = useLiveCollection<Invoice>('invoices');
-  const sup = useLiveCollection<Supplier>('suppliers');
-  const recv = invoices.reduce((s, i) => s + i.balance, 0);
-  const pay = sup.reduce((s, v) => s + v.outstanding, 0);
-  usePageHeader({ title: 'Debtors & creditors', subtitle: 'Receivables vs vendor outstanding' });
+  const customers = useLiveCollection<Customer>('customers');
+  const suppliers = useLiveCollection<Supplier>('suppliers');
+  const debtors = debtorsByCustomer(invoices, customers);
+  const creditors = creditorsFromSuppliers(suppliers);
+  const ar = debtors.reduce((s, d) => s + d.balance, 0);
+  const ap = creditors.reduce((s, c) => s + c.outstanding, 0);
+  usePageHeader({ title: 'Debtors & creditors', subtitle: 'Outstanding receivables and vendor payables' });
   return (
-    <Card padding="md" className="space-y-2 text-sm">
-      <p>Debtors (invoice balance): {formatINRDecimal(recv)}</p>
-      <p>Creditors (vendor outstanding): {formatINRDecimal(pay)}</p>
-      <Link className="inline-block pt-4 text-primary" to="/audit">
-        ← Back
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card padding="md">
+          <p className="text-xs uppercase text-muted-foreground">Debtors</p>
+          <p className="mt-1 text-2xl font-semibold">{formatINRDecimal(ar)}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs uppercase text-muted-foreground">Creditors</p>
+          <p className="mt-1 text-2xl font-semibold">{formatINRDecimal(ap)}</p>
+        </Card>
+      </div>
+      <Card padding="md">
+        <h3 className="font-semibold">Top debtors (invoice balance)</h3>
+        <DataTableShell bare className="mt-3">
+          <table className={dataTableClasses}>
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th className="text-right">Balance</th>
+                <th className="text-right">Invoices</th>
+              </tr>
+            </thead>
+            <tbody>
+              {debtors.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="text-muted-foreground">
+                    No open balances.
+                  </td>
+                </tr>
+              )}
+              {debtors.slice(0, 40).map((d) => (
+                <tr key={d.customerId}>
+                  <td>
+                    <Link className="text-primary hover:underline" to={`/finance/customers/${d.customerId}`}>
+                      {d.name}
+                    </Link>
+                  </td>
+                  <td className="text-right tabular-nums">{formatINRDecimal(d.balance)}</td>
+                  <td className="text-right">{d.invoiceCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </DataTableShell>
+      </Card>
+      <Card padding="md">
+        <h3 className="font-semibold">Creditors (vendor outstanding)</h3>
+        <DataTableShell bare className="mt-3">
+          <table className={dataTableClasses}>
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th className="text-right">Outstanding</th>
+              </tr>
+            </thead>
+            <tbody>
+              {creditors.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="text-muted-foreground">
+                    No vendor dues.
+                  </td>
+                </tr>
+              )}
+              {creditors.slice(0, 40).map((c) => (
+                <tr key={c.supplierId}>
+                  <td>
+                    <Link className="text-primary hover:underline" to={`/finance/vendors/${c.supplierId}`}>
+                      {c.name}
+                    </Link>
+                  </td>
+                  <td className="text-right tabular-nums">{formatINRDecimal(c.outstanding)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </DataTableShell>
+      </Card>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
       </Link>
-    </Card>
+    </div>
   );
 }
 
 export function AuditGstPage() {
+  const invoices = useLiveCollection<Invoice>('invoices');
+  const saleBills = useLiveCollection<SaleBill>('saleBills');
+  const purchaseBills = useLiveCollection<PurchaseBill>('purchaseBills');
+  const profile = getItem<CompanyProfile>('companyProfile');
+  const g = aggregateGstActivity({ invoices, saleBills, purchaseBills });
+  usePageHeader({ title: 'GST activity', subtitle: 'Aggregated from invoice/sale bill breakups and purchase line taxes' });
   return (
-    <StubPage
-      title="GST compliance"
-      body="GSTR-1 / 3B placeholders. This prototype does not generate filing-ready returns. Use exported invoice lines when GST item data is complete."
-      checklist={[
-        'Invoice line items include HSN and GST breakup where captured',
-        'Sale bills and purchase bills carry gstBreakup in seed data',
-        'Filing export is not implemented — use Analytics export or manual CSV',
-      ]}
-      related={[
-        { to: '/finance/billing', label: 'Finance billing desk' },
-        { to: '/finance/invoices', label: 'Invoices list' },
-        { to: '/analytics', label: 'Analytics export' },
-      ]}
-    />
+    <div className="space-y-4">
+      <Card padding="md">
+        <p className="text-sm text-muted-foreground">
+          Company GSTIN (profile): <strong>{profile?.gst?.trim() || '— not set'}</strong>. Figures below include only documents where GST components were stored.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+          <p>
+            Documents with output breakup: <strong>{g.invoicesWithBreakup + g.saleBillsWithBreakup}</strong> (inv {g.invoicesWithBreakup} · SB{' '}
+            {g.saleBillsWithBreakup})
+          </p>
+          <p>
+            Purchase bills with taxed lines: <strong>{g.billsWithGstItems}</strong>
+          </p>
+          <p>
+            Net tax (output − input): <strong className="text-lg">{formatINRDecimal(g.netTaxPayable)}</strong>
+          </p>
+        </div>
+      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card padding="md">
+          <h3 className="font-semibold">Output (sales)</h3>
+          <ul className="mt-2 space-y-1 text-sm">
+            <li>Taxable value: {formatINRDecimal(g.taxableSales)}</li>
+            <li>CGST: {formatINRDecimal(g.outputCgst)}</li>
+            <li>SGST: {formatINRDecimal(g.outputSgst)}</li>
+            <li>IGST: {formatINRDecimal(g.outputIgst)}</li>
+            <li className="font-medium">Total tax: {formatINRDecimal(g.outputTax)}</li>
+          </ul>
+        </Card>
+        <Card padding="md">
+          <h3 className="font-semibold">Input (purchases)</h3>
+          <ul className="mt-2 space-y-1 text-sm">
+            <li>Taxable value (est.): {formatINRDecimal(g.taxablePurchases)}</li>
+            <li>CGST: {formatINRDecimal(g.inputCgst)}</li>
+            <li>SGST: {formatINRDecimal(g.inputSgst)}</li>
+            <li>IGST: {formatINRDecimal(g.inputIgst)}</li>
+            <li className="font-medium">Total tax: {formatINRDecimal(g.inputTax)}</li>
+          </ul>
+        </Card>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        This is not GSTR-1/3B filing output. Use CSV exports from Reports for external compliance work.
+      </p>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
+      </Link>
+    </div>
   );
 }
 
 export function AuditCashBankPage() {
+  const payments = useLiveCollection<Payment>('payments');
+  const companyExpenses = useLiveCollection<CompanyExpense>('companyExpenses');
+  const incomeRecords = useLiveCollection<IncomeRecord>('incomeRecords');
+  const rows = cashBankByMode({ payments, companyExpenses, incomeRecords });
+  usePageHeader({ title: 'Cash & bank', subtitle: 'Instrument mix from payments, expenses, and income register' });
   return (
-    <StubPage
-      title="Cash & bank"
-      body="Bank reconciliation UI can be added when statement import is defined. Voucher and ledger lines in seed demonstrate double-entry patterns."
-      checklist={[
-        'Review Receipt / Payment vouchers in storage (prototype)',
-        'Match payments list to invoice receipts for cash flow sanity',
-      ]}
-      related={[
-        { to: '/finance/payments', label: 'Payments' },
-        { to: '/finance/chart-of-accounts', label: 'Chart of accounts' },
-        { to: '/finance/accounting', label: 'Accounting desk' },
-      ]}
-    />
+    <div className="space-y-4">
+      <DataTableShell>
+        <table className={dataTableClasses}>
+          <thead>
+            <tr>
+              <th>Mode</th>
+              <th className="text-right">Inflow</th>
+              <th className="text-right">Outflow</th>
+              <th className="text-right">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.mode}>
+                <td>{r.mode}</td>
+                <td className="text-right tabular-nums">{formatINRDecimal(r.inflow)}</td>
+                <td className="text-right tabular-nums">{formatINRDecimal(r.outflow)}</td>
+                <td className="text-right font-medium tabular-nums">{formatINRDecimal(r.net)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </DataTableShell>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
+      </Link>
+    </div>
   );
 }
 
 export function AuditExpensesPage() {
-  return <StubPage title="Expense audit" body="See Finance → Expense audit for category breakdown. This page mirrors policy checks later." />;
+  const companyExpenses = useLiveCollection<CompanyExpense>('companyExpenses');
+  const roll = rollupExpensesByTaxonomyKey(companyExpenses);
+  usePageHeader({ title: 'Expense audit', subtitle: 'Unified taxonomy roll-up (same keys as CoA mapping)' });
+  return (
+    <div className="space-y-4">
+      <Card padding="sm">
+        <Link className="text-sm font-medium text-primary" to="/finance/expense-audit">
+          Open Finance → Expense audit (policy & detail)
+        </Link>
+      </Card>
+      <DataTableShell>
+        <table className={dataTableClasses}>
+          <thead>
+            <tr>
+              <th>Taxonomy key</th>
+              <th>Pillar</th>
+              <th className="text-right">Amount</th>
+              <th className="text-right">Lines</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roll.slice(0, 200).map((r) => (
+              <tr key={r.key}>
+                <td className="max-w-[14rem] truncate font-mono text-xs" title={r.key}>
+                  {r.key}
+                </td>
+                <td>{r.pillar ?? '—'}</td>
+                <td className="text-right tabular-nums">{formatINRDecimal(r.amount)}</td>
+                <td className="text-right">{r.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </DataTableShell>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
+      </Link>
+    </div>
+  );
 }
 
 export function AuditAssetsPage() {
+  const tools = useLiveCollection<Tool>('tools');
+  const rows = toolsAsFixedAssets(tools);
+  const nbv = rows.reduce((s, r) => s + r.bookValueEstimate, 0);
+  const cost = rows.reduce((s, r) => s + r.purchaseRate, 0);
+  usePageHeader({ title: 'Fixed assets (tools)', subtitle: 'Straight-line NBV estimate from purchase date' });
   return (
-    <StubPage
-      title="Fixed assets"
-      body="Tools inventory includes purchase rate and depreciation fields; a full fixed-asset register can extend the same pattern."
-      checklist={['Tools list shows condition and lifecycle status', 'Tool movements (issue / return / transfer) in seed']}
-      related={[
-        { to: '/inventory/tools', label: 'Tools & assets' },
-        { to: '/audit/inventory', label: 'Inventory audit' },
-      ]}
-    />
+    <div className="space-y-4">
+      <Card padding="md" className="text-sm">
+        <p>
+          Gross tool cost: <strong>{formatINRDecimal(cost)}</strong> · Estimated NBV: <strong>{formatINRDecimal(nbv)}</strong>
+        </p>
+      </Card>
+      <DataTableShell>
+        <table className={dataTableClasses}>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Status</th>
+              <th>Condition</th>
+              <th className="text-right">Purchase</th>
+              <th className="text-right">Est. book</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td>{r.name}</td>
+                <td>{r.lifecycleStatus ?? '—'}</td>
+                <td>{r.condition}</td>
+                <td className="text-right tabular-nums">{formatINRDecimal(r.purchaseRate)}</td>
+                <td className="text-right tabular-nums">{formatINRDecimal(r.bookValueEstimate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </DataTableShell>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
+      </Link>
+    </div>
   );
 }
 
 export function AuditLogsPage() {
   const logs = useLiveCollection<AuditLogEntry>('auditLogs');
-  usePageHeader({ title: 'Audit logs', subtitle: 'Last writes (cap 2000 in store)' });
+  usePageHeader({ title: 'Audit logs', subtitle: 'Recent mutations (newest first)' });
+  const sorted = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   return (
     <Card padding="none" className="overflow-hidden">
-      <div className="max-h-[480px] overflow-y-auto text-xs">
+      <div className="max-h-[min(70vh,560px)] overflow-y-auto text-xs">
         <table className="w-full text-left">
-          <thead className="sticky top-0 bg-muted">
+          <thead className="sticky top-0 z-10 bg-muted">
             <tr>
               <th className="p-2">Time</th>
               <th className="p-2">Action</th>
@@ -219,21 +463,23 @@ export function AuditLogsPage() {
             </tr>
           </thead>
           <tbody>
-            {logs.length === 0 && (
+            {sorted.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-4 text-muted-foreground">
-                  No entries yet. Log unified expenses/income, create invoices, or resolve approvals.
+                  No entries yet.
                 </td>
               </tr>
             )}
-            {logs.slice(0, 200).map((l) => (
+            {sorted.slice(0, 400).map((l) => (
               <tr key={l.id} className="border-t border-border">
                 <td className="p-2 whitespace-nowrap">{l.timestamp.slice(0, 19)}</td>
                 <td className="p-2">{l.action}</td>
                 <td className="p-2">
                   {l.entityType} {l.entityName ?? l.entityId}
                 </td>
-                <td className="p-2 text-muted-foreground">{l.newValue ?? l.field ?? '—'}</td>
+                <td className="p-2 text-muted-foreground">
+                  {[l.field, l.newValue].filter(Boolean).join(' → ') || '—'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -241,7 +487,7 @@ export function AuditLogsPage() {
       </div>
       <div className="border-t border-border p-3">
         <Link className="text-sm text-primary" to="/audit">
-          ← Back
+          ← Audit home
         </Link>
       </div>
     </Card>
@@ -249,28 +495,160 @@ export function AuditLogsPage() {
 }
 
 export function AuditReportsPage() {
+  const invoices = useLiveCollection<Invoice>('invoices');
+  const payments = useLiveCollection<Payment>('payments');
+  const expenses = useLiveCollection<CompanyExpense>('companyExpenses');
+  const incomes = useLiveCollection<IncomeRecord>('incomeRecords');
+  const customers = useLiveCollection<Customer>('customers');
+  const suppliers = useLiveCollection<Supplier>('suppliers');
+  usePageHeader({ title: 'Reports & export', subtitle: 'Download CSV extracts' });
+
+  function download(name: string, csv: string) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+  }
+
+  const debtorRows = debtorsByCustomer(invoices, customers).map((d) => ({
+    customerId: d.customerId,
+    name: d.name,
+    balance: d.balance,
+    invoices: d.invoiceCount,
+  }));
+
   return (
-    <StubPage
-      title="Reports & export"
-      body="Batch CSV/JSON exports per module can be added incrementally. Analytics currently exports a summary JSON of counts."
-      checklist={['Dashboard drilldowns link to underlying records', 'Audit logs capture recent mutations']}
-      related={[
-        { to: '/analytics', label: 'Analytics' },
-        { to: '/audit/logs', label: 'Audit logs' },
-      ]}
-    />
+    <div className="space-y-4">
+      <Card padding="md" className="text-sm text-muted-foreground">
+        Exports are point-in-time snapshots from browser storage. Large datasets may take a moment.
+      </Card>
+      <div className="flex flex-wrap gap-2">
+        <ShellButton
+          type="button"
+          variant="secondary"
+          onClick={() => download(`debtors-${Date.now()}.csv`, exportAuditCsv('debtors', debtorRows))}
+        >
+          Debtors CSV
+        </ShellButton>
+        <ShellButton
+          type="button"
+          variant="secondary"
+          onClick={() =>
+            download(
+              `payments-${Date.now()}.csv`,
+              exportAuditCsv(
+                'payments',
+                payments.map((p) => ({
+                  id: p.id,
+                  invoiceId: p.invoiceId,
+                  amount: p.amount,
+                  mode: p.mode,
+                  date: p.date,
+                }))
+              )
+            )
+          }
+        >
+          Payments CSV
+        </ShellButton>
+        <ShellButton
+          type="button"
+          variant="secondary"
+          onClick={() =>
+            download(
+              `expenses-${Date.now()}.csv`,
+              exportAuditCsv(
+                'companyExpenses',
+                expenses.map((e) => ({
+                  id: e.id,
+                  date: e.date,
+                  amount: e.amount,
+                  pillar: e.pillar ?? '',
+                  taxonomyKey: e.taxonomyKey ?? '',
+                  category: e.category,
+                }))
+              )
+            )
+          }
+        >
+          Expenses CSV
+        </ShellButton>
+        <ShellButton
+          type="button"
+          variant="secondary"
+          onClick={() =>
+            download(
+              `income-${Date.now()}.csv`,
+              exportAuditCsv(
+                'income',
+                incomes.map((r) => ({
+                  id: r.id,
+                  date: r.date,
+                  amount: r.amount,
+                  pillar: r.pillar,
+                  taxonomyKey: r.taxonomyKey ?? '',
+                  outgoing: r.isOutgoing ? 'yes' : 'no',
+                }))
+              )
+            )
+          }
+        >
+          Income CSV
+        </ShellButton>
+        <ShellButton
+          type="button"
+          variant="secondary"
+          onClick={() =>
+            download(
+              `creditors-${Date.now()}.csv`,
+              exportAuditCsv(
+                'creditors',
+                suppliers.map((s) => ({
+                  id: s.id,
+                  name: s.name,
+                  outstanding: s.outstanding,
+                }))
+              )
+            )
+          }
+        >
+          Creditors CSV
+        </ShellButton>
+      </div>
+      <Link className="text-sm text-primary" to="/audit">
+        ← Audit home
+      </Link>
+    </div>
   );
 }
 
 export function AuditDataFlowPage() {
-  usePageHeader({ title: 'Data flow', subtitle: 'Entity relationships' });
+  const projects = useLiveCollection<Project>('projects');
+  const enquiries = useLiveCollection<Enquiry>('enquiries');
+  const quotations = useLiveCollection<Quotation>('quotations');
+  const invoices = useLiveCollection<Invoice>('invoices');
+  const tasks = useLiveCollection<Task>('tasks');
+  usePageHeader({ title: 'Data flow', subtitle: 'Entity graph — counts' });
   return (
-    <Card padding="md" className="space-y-3 text-sm text-muted-foreground">
-      <p>Enquiry → Quotation → Project → Invoice / Payments</p>
-      <p>Project → Material transfers, Tasks, Company expenses, Outsource work</p>
-      <p>Customer ← Invoices, Sale bills, Projects</p>
+    <Card padding="md" className="space-y-4 text-sm text-muted-foreground">
+      <ul className="list-inside list-disc space-y-2">
+        <li>
+          Enquiry → Quotation → Project → Invoice / Payments / Sites / Tasks / Material transfers
+        </li>
+        <li>Customer ← Projects, Invoices, Sale bills</li>
+        <li>Supplier ← Purchase bills ← Vendor payments</li>
+        <li>Unified expenses & income → Audit taxonomy roll-ups → Chart mapping (finance)</li>
+      </ul>
+      <div className="rounded-lg border border-border bg-muted/30 p-4 font-mono text-xs text-foreground">
+        <p>enquiries: {enquiries.length}</p>
+        <p>quotations: {quotations.length}</p>
+        <p>projects: {projects.length}</p>
+        <p>invoices: {invoices.length}</p>
+        <p>tasks: {tasks.length}</p>
+      </div>
       <Link className="inline-block text-primary" to="/audit">
-        ← Back
+        ← Audit home
       </Link>
     </Card>
   );

@@ -7,7 +7,7 @@ export function FinanceAccountingDesk() {
   const [tab, setTab] = useState<Tab>('chart');
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 border-b border-border pb-2 text-sm">
+      <div className="sticky-page-subnav -mx-1 flex flex-wrap gap-2 border-b border-border bg-background/95 py-2.5 text-sm backdrop-blur-sm">
         <button
           type="button"
           className={`rounded-full px-3 py-1.5 font-medium transition-colors ${

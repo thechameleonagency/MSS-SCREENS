@@ -1,7 +1,7 @@
 import type { ProjectType } from '../types';
 
 export type ProjectDetailTabKey =
-  | 'overview'
+  | 'timeline'
   | 'documents'
   | 'progress'
   | 'events'
@@ -10,7 +10,7 @@ export type ProjectDetailTabKey =
   | 'att';
 
 export const PROJECT_DETAIL_TAB_LABELS: { key: ProjectDetailTabKey; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
+  { key: 'timeline', label: 'Project timeline' },
   { key: 'documents', label: 'Documents' },
   { key: 'progress', label: 'Tasks & tickets' },
   { key: 'events', label: 'Activity' },
@@ -19,9 +19,11 @@ export const PROJECT_DETAIL_TAB_LABELS: { key: ProjectDetailTabKey; label: strin
   { key: 'att', label: 'Site attendance' },
 ];
 
+const FEE_ONLY_TAB_KEYS: ProjectDetailTabKey[] = ['timeline', 'documents'];
+
 export function visibleProjectTabs(type: ProjectType): { key: ProjectDetailTabKey; label: string }[] {
   if (type === 'Vendorship Fee') {
-    return PROJECT_DETAIL_TAB_LABELS.filter((t) => t.key !== 'materials');
+    return PROJECT_DETAIL_TAB_LABELS.filter((t) => FEE_ONLY_TAB_KEYS.includes(t.key));
   }
   return PROJECT_DETAIL_TAB_LABELS;
 }
@@ -37,18 +39,13 @@ const FIN_LABELS: Record<FinSubViewKey, string> = {
   channel: 'Channel partner',
 };
 
-export function visibleFinSubViews(
-  type: ProjectType,
-  opts: { hasChannelPartner: boolean }
-): { key: FinSubViewKey; label: string }[] {
+export function visibleFinSubViews(type: ProjectType): { key: FinSubViewKey; label: string }[] {
+  if (type === 'Vendorship Fee') {
+    return [];
+  }
   const keys: FinSubViewKey[] = ['summary', 'payments', 'expenses', 'partner', 'food'];
   if (type === 'Solo') {
     keys.splice(keys.indexOf('partner'), 1);
-  }
-  if (type === 'Vendorship Fee') {
-    const i = keys.indexOf('partner');
-    if (i >= 0) keys.splice(i, 1);
-    if (opts.hasChannelPartner) keys.push('channel');
   }
   return keys.map((key) => ({ key, label: FIN_LABELS[key] }));
 }

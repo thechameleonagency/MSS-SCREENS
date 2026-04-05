@@ -53,7 +53,7 @@ export function GlobalSearch() {
       customers
         .filter((c) => c.name.toLowerCase().includes(s) || c.phone.replace(/\D/g, '').includes(s.replace(/\D/g, '')))
         .slice(0, PER_TYPE)
-        .map((c) => ({ type: 'Customer', label: c.name, to: `/sales/customers/${c.id}` }))
+        .map((c) => ({ type: 'Customer', label: c.name, to: `/finance/customers/${c.id}` }))
     );
     push(
       invoices
@@ -115,14 +115,14 @@ export function GlobalSearch() {
   }, [q, projects, customers, invoices, users, quotations, enquiries, tasks, suppliers, payments]);
 
   return (
-    <div className="relative hidden max-w-xs flex-1 sm:block md:max-w-[200px] lg:max-w-xs">
+    <div className="relative hidden w-full min-w-0 flex-1 sm:block">
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">⌕</span>
       <input
         type="search"
-        placeholder="Search…"
+        placeholder="Search projects, customers, invoices…"
         aria-label="Global search"
         aria-expanded={open}
-        className="h-10 w-full rounded-full border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="h-10 w-full max-w-none rounded-full border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);

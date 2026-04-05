@@ -58,6 +58,13 @@ export function computeQuotationEffective(lineTotal: number, discount: Quotation
   return Math.round(afterDisc * (1 + gstPercent / 100) * 100) / 100;
 }
 
+/** ₹ discount applied to line subtotal before GST (for approval threshold checks). */
+export function quotationDiscountAmountInr(lineTotal: number, discount: QuotationDiscount): number {
+  const t = discount.type ?? 'percent';
+  if (t === 'amount') return Math.min(lineTotal, Math.max(0, discount.value || 0));
+  return Math.round(lineTotal * ((discount.percent || 0) / 100) * 100) / 100;
+}
+
 export function computeEffectivePrice(
   lineTotal: number,
   discountPercent: number,
@@ -200,6 +207,11 @@ export function taskEffectiveStatus(task: Task): Task['status'] {
 export function defaultExpenseTagForRole(role: User['role']): 'Direct' | 'Indirect' {
   if (role === 'Salesperson' || role === 'Installation Team') return 'Direct';
   return 'Indirect';
+}
+
+/** Open enquiries for pipeline KPIs (BR §12.1). */
+export function isOpenEnquiryStatus(s: Enquiry['status']): boolean {
+  return s === 'New' || s === 'Contacted';
 }
 
 export function defaultProgressSteps(): Project['progressSteps'] {

@@ -1,16 +1,23 @@
 export type UserRole =
   | 'Super Admin'
   | 'Admin'
+  | 'CEO'
   | 'Management'
   | 'Salesperson'
   | 'Installation Team';
 
 export type ExpenseTag = 'Direct' | 'Indirect';
 
+export type UserAccountType = 'admin' | 'employee';
+
 export interface User {
   id: string;
   name: string;
   role: UserRole;
+  /** Job title for HR cards (separate from permission role). */
+  jobTitle?: string;
+  /** BR §10: admin vs employee portal; prototype defaults to admin. */
+  userType?: UserAccountType;
   expenseTag: ExpenseTag;
   phone: string;
   email: string;
@@ -45,6 +52,8 @@ export interface Attendance {
 export interface Task {
   id: string;
   projectId: string;
+  /** When set, task was created from an enquiry (e.g. scheduled meeting); projectId may be a placeholder. */
+  enquiryId?: string;
   siteId?: string;
   title: string;
   description: string;
@@ -80,6 +89,8 @@ export interface Agent {
   photo: string;
   fullName: string;
   mobile: string;
+  /** WhatsApp (defaults to mobile in UI if empty) */
+  whatsappNumber?: string;
   email: string;
   rateType: 'Per kW' | 'Flat';
   rate: number;
@@ -87,7 +98,43 @@ export interface Agent {
   totalCommission: number;
   paidCommission: number;
   pendingCommission?: number;
+  /**
+   * Introducing partner: client-only referrer; earns agreed % of **our** project profit post-completion.
+   * Distinct from Finance “Partners” (co-execution / materials / labour).
+   */
+  isProfitSharePartner?: boolean;
   createdAt: string;
+}
+
+export type IntroAgentPayoutKind = 'profit_share' | 'referral';
+
+/** Per-project economics for agents flagged as profit-share introducers only. */
+export interface AgentIntroProjectEconomics {
+  id: string;
+  projectId: string;
+  agentId: string;
+  estimatedSiteCostInr: number;
+  estimatedGrossProfitInr: number;
+  /** Agreed share of estimated gross profit (%) — used only when introducerPayMode is profit_share */
+  partnerSharePercent: number;
+  /** Single remuneration mode for this project row (not combinable with other modes). */
+  introducerPayMode?: IntroducingPartnerPayMode;
+  /** referral_flat: total ₹ due for the introduction */
+  referralFlatInr?: number;
+  /** referral_per_kw: ₹ per kW × project capacity */
+  referralPerKwInr?: number;
+  /** @deprecated migrated to introducerPayMode + referral* */
+  projectReferralRateType?: 'None' | 'Per kW' | 'Flat';
+  /** @deprecated use referralFlatInr / referralPerKwInr */
+  projectReferralRateInr?: number;
+  payouts: {
+    id: string;
+    amountInr: number;
+    date: string;
+    notes: string;
+    kind?: IntroAgentPayoutKind;
+  }[];
+  updatedAt: string;
 }
 
 export type EnquirySourceType =
@@ -107,6 +154,20 @@ export interface EnquiryNote {
   updatedBy: string;
   timestamp: string;
   date?: string;
+}
+
+/** How an introducing partner is paid for a lead — exactly one applies per deal / project. */
+export type IntroducingPartnerPayMode = 'profit_share' | 'referral_flat' | 'referral_per_kw';
+
+export interface QuotationSolarSpec {
+  panelBrand?: string;
+  panelWattage?: number;
+  panelCount?: number;
+  inverterBrand?: string;
+  inverterCapacityKw?: number;
+  structureType?: string;
+  floorHeight?: string;
+  systemDescription?: string;
 }
 
 export interface Enquiry {
@@ -136,8 +197,21 @@ export interface Enquiry {
   roofType?: string;
   /** Average monthly electricity bill (₹) */
   monthlyBillAmount?: number;
+  /** When the lead comes with a fixed deal price (esp. introducing partners) */
+  fixedDealAmountInr?: number;
+  /** Agreed % of our gross profit for introducing partner (shown on project when converted) */
+  partnerProfitSharePercent?: number;
+  /**
+   * Introducing partner remuneration mode (single choice). If unset, inferred from partnerProfitSharePercent vs fixed amounts.
+   */
+  introducingPartnerPayMode?: IntroducingPartnerPayMode;
+  /** When mode is referral_flat */
+  introducingPartnerReferralFlatInr?: number;
+  /** When mode is referral_per_kw (₹ per kW) */
+  introducingPartnerReferralPerKwInr?: number;
   notes: EnquiryNote[];
-  status: 'New' | 'In Progress' | 'Converted' | 'Closed';
+  /** BR §12.1: New → Contacted → Converted | Lost */
+  status: 'New' | 'Contacted' | 'Converted' | 'Lost';
   createdAt: string;
   updatedAt: string;
 }
@@ -174,6 +248,18 @@ export interface Quotation {
   systemConfigPresetId: string;
   /** Doc: Solar EPC vs generic / other */
   quoteKind?: 'Solar' | 'Other';
+  /** kW — may mirror enquiry or be edited on quote */
+  systemCapacityKw?: number;
+  /** Central / state govt subsidy deducted for effective price */
+  govtSubsidyInr?: number;
+  /** Display: referring agent / partner name on quote header */
+  referringAgentName?: string;
+  clientCity?: string;
+  clientState?: string;
+  solarSpec?: QuotationSolarSpec;
+  introducingPartnerPayMode?: IntroducingPartnerPayMode;
+  introducingPartnerReferralFlatInr?: number;
+  introducingPartnerReferralPerKwInr?: number;
   includePaymentTerms?: boolean;
   includeWarranty?: boolean;
   lineItems: {
@@ -280,16 +366,43 @@ export interface ProjectMaterialsSentLine {
   notes?: string;
 }
 
+/** Per-site material ledger (BR §7.3) — issue unit quantities; balance = opening + issued − returned − scrap − consumed. */
+export interface SiteMaterialLedgerRow {
+  id: string;
+  siteId: string;
+  materialId: string;
+  openingQty: number;
+  issuedQty: number;
+  returnedQty: number;
+  scrapAtSiteQty: number;
+  consumedQty: number;
+  lastUpdatedBy?: string;
+  lastUpdatedAt?: string;
+}
+
+/** Customer / bank loan installments tracked at project level (BR §7.2 / Loan File Book). */
+export interface ProjectLoanInstallment {
+  id: string;
+  sequence: 1 | 2;
+  amountInr: number;
+  dueDate?: string;
+  receivedDate?: string;
+  receiptRef?: string;
+  status: 'Pending' | 'Received';
+}
+
 export interface Project {
   id: string;
   name: string;
   type: ProjectType;
-  category: 'Residential' | 'Commercial' | 'Industrial';
+  category: 'Residential' | 'Commercial' | 'Industrial' | 'Other';
   status: ProjectStatus;
   customerId: string;
   quotationId?: string;
   agentId?: string;
   partnerId?: string;
+  /** Additional partners on the same deal (e.g. multi-party profit or contribution projects). */
+  coPartnerIds?: string[];
   channelPartnerId?: string;
   capacity: number;
   contractAmount: number;
@@ -317,6 +430,10 @@ export interface Project {
   paymentType?: 'Bank Loan' | 'Cash' | 'Bank Loan + Cash';
   /** Cumulative lines issued from warehouse to this project */
   materialsSent?: ProjectMaterialsSentLine[];
+  /** Aggregated per-site material positions (editable on site detail). */
+  siteMaterialLedger?: SiteMaterialLedgerRow[];
+  /** Bank loan disbursement schedule (1st / 2nd installment). */
+  loanInstallments?: ProjectLoanInstallment[];
   /** Active Sites board filters (doc §2) */
   operational?: {
     fileLogin?: string;
@@ -355,7 +472,23 @@ export interface SiteWorkStatusItem {
   done: boolean;
   photoUrls?: string[];
   videoUrls?: string[];
-  approvalStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+  approvalStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'resubmit_requested';
+  /** Photo / work verification (BR §7.3) */
+  verifierName?: string;
+  verifiedAt?: string;
+  verificationRemarks?: string;
+}
+
+export type SiteDocumentKind = 'DCR' | 'WCR' | 'VendorConfirmation' | 'Other';
+
+export interface SiteDocumentRef {
+  id: string;
+  kind: SiteDocumentKind;
+  title: string;
+  url?: string;
+  vendorId?: string;
+  notes?: string;
+  createdAt: string;
 }
 
 export interface SiteWorkStatusArea {
@@ -381,6 +514,8 @@ export interface Site {
   siteBlockages?: SiteBlockage[];
   /** Populated for Solo-type parent projects when using structured work status */
   soloWorkStatus?: SiteSoloWorkStatus;
+  /** DCR, WCR, vendor confirmations (BR §7.3 / §7.5). */
+  siteDocuments?: SiteDocumentRef[];
   createdAt: string;
 }
 
@@ -412,7 +547,8 @@ export interface Tool {
   category: string;
   purchaseRate: number;
   purchaseDate: string;
-  condition: 'Good' | 'Fair' | 'Poor' | 'Under Repair' | 'Damaged';
+  /** BR §7.6 — aligned condition labels */
+  condition: 'Good' | 'Minor Damage' | 'Major Damage' | 'Not Working';
   /** Doc lifecycle */
   lifecycleStatus?: ToolLifecycleStatus;
   assignedTo?: string;
@@ -679,13 +815,23 @@ export interface ApprovalRequest {
   id: string;
   kind: ApprovalKind;
   status: 'pending' | 'approved' | 'rejected';
+  /** Human-readable ticket for support / audit (BR §7.13). */
+  ticketNo?: string;
+  /** BR: leave type, expense category, blockage type code */
+  reasonCode?: string;
   title: string;
   detail: string;
   amount?: number;
   projectName?: string;
+  /** System size (kW) for card subtitle */
+  projectCapacityKw?: number;
   employeeName?: string;
+  employeeId?: string;
+  projectId?: string;
   payload: Record<string, unknown>;
   requestedAt: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
 }
 
 /** Double-entry voucher header (incremental MMS #11). */
@@ -707,26 +853,7 @@ export interface LedgerLine {
   debit: number;
   credit: number;
   narration?: string;
-}
-
-/** Double-entry lines linked to a voucher (MMS #11 incremental). */
-export interface LedgerLine {
-  id: string;
-  voucherId: string;
-  accountId: string;
-  debit: number;
-  credit: number;
-  narration?: string;
-  createdAt: string;
-}
-
-export interface Voucher {
-  id: string;
-  type: 'Sales' | 'Receipt' | 'Purchase' | 'Payment' | 'Journal' | 'Contra';
-  date: string;
-  narration?: string;
-  postedFrom?: { entityType: string; entityId: string };
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface AuditLogEntry {
@@ -769,7 +896,8 @@ export type MasterDataType =
   | 'SystemCapacity'
   | 'ExpenseMainCategory'
   | 'ExpenseSubCategory'
-  | 'DocumentTemplate';
+  | 'DocumentTemplate'
+  | 'EnquiryPipelineStage';
 
 export interface MasterData {
   id: string;
@@ -785,6 +913,8 @@ export interface CompanyProfile {
   gst: string;
   address: string;
   bankAccount: string;
+  /** If set (>0), quotation discount ≥ this ₹ (pre-GST subtotal) is blocked unless Super Admin. */
+  quotationDiscountApprovalThresholdInr?: number;
 }
 
 export interface MaterialTransfer {
@@ -906,6 +1036,8 @@ export const STORAGE_KEYS = {
   materialReturns: 'solar_materialReturns',
   vouchers: 'solar_vouchers',
   ledgerLines: 'solar_ledgerLines',
+  /** Introducing-agent profit-share rows per project */
+  introAgentEconomics: 'solar_introAgentEconomics',
   seeded: 'solar_seeded',
   currentRole: 'solar_currentRole',
   schemaVersion: 'solar_schemaVersion',

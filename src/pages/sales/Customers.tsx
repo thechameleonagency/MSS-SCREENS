@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { DataTableShell, dataTableClasses } from '../../components/DataTableShell';
+import { DataTableShell, DATA_TABLE_LIST_BODY_MAX_HEIGHT, dataTableClasses } from '../../components/DataTableShell';
+import { TablePaginationBar, TABLE_DEFAULT_PAGE_SIZE } from '../../components/TablePaginationBar';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
 import { SummaryCards } from '../../components/SummaryCards';
@@ -16,6 +17,8 @@ export function CustomersList() {
   const customers = useLiveCollection<Customer>('customers');
   const invoices = useLiveCollection<Invoice>('invoices');
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(TABLE_DEFAULT_PAGE_SIZE);
   const { bump } = useDataRefresh();
   const { show } = useToast();
   const [form, setForm] = useState({
@@ -80,6 +83,26 @@ export function CustomersList() {
     };
   }, [customers, invoices]);
 
+  const sortedCustomers = useMemo(
+    () => [...customers].sort((a, b) => a.name.localeCompare(b.name)),
+    [customers]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [sortedCustomers.length, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedCustomers.length / pageSize));
+  const pagedCustomers = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return sortedCustomers.slice(s, s + pageSize);
+  }, [sortedCustomers, page, pageSize]);
+
+  const pendingGrand = useMemo(
+    () => sortedCustomers.reduce((acc, c) => acc + pendingByCustomer(c.id), 0),
+    [sortedCustomers, invoices]
+  );
+
   return (
     <div className="space-y-8">
       <SummaryCards
@@ -92,7 +115,7 @@ export function CustomersList() {
         ]}
       />
       <Card padding="none" className="overflow-hidden">
-        <DataTableShell bare>
+        <DataTableShell bare bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
           <table className={dataTableClasses}>
             <thead>
               <tr>
@@ -104,23 +127,46 @@ export function CustomersList() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((c) => (
+              {pagedCustomers.map((c) => (
                 <tr key={c.id} className="transition hover:bg-muted/50">
                   <td className="font-medium text-foreground">{c.name}</td>
                   <td className="text-muted-foreground">{c.phone}</td>
                   <td className="text-muted-foreground">{c.type}</td>
                   <td className="text-muted-foreground">{formatINR(pendingByCustomer(c.id))}</td>
                   <td>
-                    <Link className="font-medium text-primary hover:text-primary/90" to={`/sales/customers/${c.id}`}>
+                    <Link className="font-medium text-primary hover:text-primary/90" to={`/finance/customers/${c.id}`}>
                       View
                     </Link>
                   </td>
                 </tr>
               ))}
             </tbody>
+            {sortedCustomers.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/40 font-medium text-foreground">
+                  <td colSpan={3} className="py-2 text-muted-foreground">
+                    Totals ({sortedCustomers.length} customers)
+                  </td>
+                  <td className="py-2 tabular-nums">{formatINR(pendingGrand)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </DataTableShell>
       </Card>
+      {sortedCustomers.length > 0 && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <TablePaginationBar
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalCount={sortedCustomers.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      )}
       <Modal open={open} title="Add customer" onClose={() => setOpen(false)}>
         <form className="space-y-3" onSubmit={save}>
           <label className="block">
@@ -254,7 +300,7 @@ export function CustomerDetail() {
       subtitle: `${row.type} · ${row.phone}`,
       actions: (
         <div className="flex flex-wrap gap-2">
-          <ShellButton type="button" variant="secondary" onClick={() => navigate('/sales/customers')}>
+          <ShellButton type="button" variant="secondary" onClick={() => navigate('/finance/customers')}>
             All customers
           </ShellButton>
           <ShellButton
@@ -350,7 +396,7 @@ export function CustomerDetail() {
       </Card>
 
       <Card padding="sm">
-        <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+        <div className="sticky-page-subnav -mx-1 flex flex-wrap gap-2 border-b border-border bg-card py-2.5 pb-3 backdrop-blur-sm">
           {(
             [
               ['inv', 'Invoices'],

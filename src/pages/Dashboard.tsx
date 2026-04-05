@@ -4,7 +4,7 @@ import { Card, CardHeader } from '../components/Card';
 import { KpiDrilldownModal } from '../components/KpiDrilldownModal';
 import { ShellButton } from '../components/ShellButton';
 import { useLiveCollection } from '../hooks/useLiveCollection';
-import { formatINR, formatINRDecimal, taskEffectiveStatus } from '../lib/helpers';
+import { formatINR, formatINRDecimal, isOpenEnquiryStatus, taskEffectiveStatus } from '../lib/helpers';
 import type {
   Enquiry,
   Invoice,
@@ -61,7 +61,7 @@ export function Dashboard() {
     const activeEmployees = users.filter((u) => u.role !== 'Installation Team').length;
     const inProgressIds = new Set(projects.filter((p) => p.status === 'In Progress').map((p) => p.id));
     const activeSites = sites.filter((s) => inProgressIds.has(s.projectId)).length;
-    const openEnquiries = enquiries.filter((e) => e.status === 'New' || e.status === 'In Progress').length;
+    const openEnquiries = enquiries.filter((e) => isOpenEnquiryStatus(e.status)).length;
     const overdueTasks = tasks.filter(
       (t) => taskEffectiveStatus(t) === 'Overdue' && t.status !== 'Completed'
     ).length;

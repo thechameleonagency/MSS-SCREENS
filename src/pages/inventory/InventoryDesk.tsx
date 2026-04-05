@@ -1,10 +1,11 @@
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MaterialsList, PresetsPage, ToolsList } from './Inventory';
+import { usePageHeader } from '../../contexts/PageHeaderContext';
+import { MaterialsList, ToolsList } from './Inventory';
 
 const TABS = [
   { id: 'materials', label: 'Materials' },
   { id: 'tools', label: 'Tools' },
-  { id: 'presets', label: 'Presets' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -14,9 +15,19 @@ export function InventoryDesk() {
   const raw = sp.get('tab') ?? 'materials';
   const tab: TabId = TABS.some((t) => t.id === raw) ? (raw as TabId) : 'materials';
 
+  usePageHeader(
+    useMemo(
+      () => ({
+        title: 'Materials & Tools',
+        subtitle: 'Warehouse materials and tool lifecycle',
+      }),
+      []
+    )
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 border-b border-border pb-2 text-sm">
+      <div className="sticky-page-subnav -mx-1 flex flex-wrap gap-2 border-b border-border bg-background/95 py-2.5 text-sm backdrop-blur-sm">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -32,7 +43,6 @@ export function InventoryDesk() {
       </div>
       {tab === 'materials' && <MaterialsList />}
       {tab === 'tools' && <ToolsList />}
-      {tab === 'presets' && <PresetsPage />}
     </div>
   );
 }

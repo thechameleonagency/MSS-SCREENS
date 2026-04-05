@@ -85,9 +85,14 @@ import {
   bulkVendorPayments,
   bulkVouchersLedger,
 } from './seedBulkExpansion';
+import {
+  buildExpensePayerVariants,
+  buildTaxonomyCoverageExpenses,
+  buildTaxonomyCoverageIncome,
+} from './seedTaxonomyCoverage';
 
 /** Bump when demo dataset changes so localStorage refreshes on next load. */
-export const DEMO_SEED_VERSION = 'mms-2026.04h-audit-completion';
+export const DEMO_SEED_VERSION = 'mms-2026.04m-agents-partner-wa';
 
 const now = new Date().toISOString();
 const today = new Date().toISOString().slice(0, 10);
@@ -102,6 +107,7 @@ export const IDS = {
   u5: 'usr_sales2',
   u6: 'usr_inst1',
   u7: 'usr_inst2',
+  u8: 'usr_ceo',
   a1: 'agt_ramesh',
   a2: 'agt_sunita',
   a3: 'agt_raj',
@@ -131,6 +137,8 @@ export const IDS = {
 function seedUsers(): User[] {
   const base = (u: Omit<User, 'expenseTag' | 'createdAt' | 'updatedAt'>): User => ({
     ...u,
+    userType: u.userType ?? 'admin',
+    jobTitle: u.jobTitle,
     expenseTag: defaultExpenseTagForRole(u.role),
     createdAt: now,
     updatedAt: now,
@@ -140,8 +148,9 @@ function seedUsers(): User[] {
       id: IDS.u1,
       name: 'Vikram Mehta',
       role: 'Super Admin',
+      jobTitle: 'Administrator',
       phone: '9876543210',
-      email: 'vikram@solarco.in',
+      email: 'vikram@mahisolarsolution.demo',
       address: 'Pune, MH',
       dob: '1985-03-12',
       salary: 120000,
@@ -156,7 +165,7 @@ function seedUsers(): User[] {
       name: 'Neha Sharma',
       role: 'Admin',
       phone: '9876543211',
-      email: 'neha@solarco.in',
+      email: 'neha@mahisolarsolution.demo',
       address: 'Mumbai, MH',
       dob: '1990-07-22',
       salary: 95000,
@@ -171,7 +180,7 @@ function seedUsers(): User[] {
       name: 'Rahul Desai',
       role: 'Management',
       phone: '9876543212',
-      email: 'rahul@solarco.in',
+      email: 'rahul@mahisolarsolution.demo',
       address: 'Nashik, MH',
       dob: '1988-11-05',
       salary: 88000,
@@ -182,11 +191,28 @@ function seedUsers(): User[] {
       joiningDate: '2019-08-10',
     }),
     base({
+      id: IDS.u8,
+      name: 'Ananya Kulkarni',
+      role: 'CEO',
+      jobTitle: 'Chief Executive',
+      phone: '9876543209',
+      email: 'ceo@mahisolarsolution.demo',
+      address: 'Pune, MH',
+      dob: '1982-05-20',
+      salary: 150000,
+      bankDetails: '—',
+      documents: { aadhaar: '', pan: '', photo: '', offerLetter: '' },
+      username: 'ceo',
+      password: 'admin',
+      joiningDate: '2018-01-01',
+    }),
+    base({
       id: IDS.u4,
       name: 'Priya Kulkarni',
       role: 'Salesperson',
+      jobTitle: 'Sales Executive',
       phone: '9876543213',
-      email: 'priya@solarco.in',
+      email: 'priya@mahisolarsolution.demo',
       address: 'Pune, MH',
       dob: '1995-01-30',
       salary: 45000,
@@ -201,7 +227,7 @@ function seedUsers(): User[] {
       name: 'Amit Patil',
       role: 'Salesperson',
       phone: '9876543214',
-      email: 'amit@solarco.in',
+      email: 'amit@mahisolarsolution.demo',
       address: 'Kolhapur, MH',
       dob: '1993-09-18',
       salary: 42000,
@@ -215,8 +241,9 @@ function seedUsers(): User[] {
       id: IDS.u6,
       name: 'Suresh Yadav',
       role: 'Installation Team',
+      jobTitle: 'Senior Installer',
       phone: '9876543215',
-      email: 'suresh@solarco.in',
+      email: 'suresh@mahisolarsolution.demo',
       address: 'Satara, MH',
       dob: '1992-04-25',
       salary: 38000,
@@ -230,8 +257,9 @@ function seedUsers(): User[] {
       id: IDS.u7,
       name: 'Deepak Jadhav',
       role: 'Installation Team',
+      jobTitle: 'Electrician',
       phone: '9876543216',
-      email: 'deepak@solarco.in',
+      email: 'deepak@mahisolarsolution.demo',
       address: 'Sangli, MH',
       dob: '1991-12-08',
       salary: 40000,
@@ -272,6 +300,7 @@ function seedAgents(): Agent[] {
       photo: '',
       fullName: 'Ramesh Verma',
       mobile: '9123456780',
+      whatsappNumber: '919123456780',
       email: 'ramesh.v@agents.in',
       rateType: 'Per kW',
       rate: 1000,
@@ -279,6 +308,7 @@ function seedAgents(): Agent[] {
       totalCommission: 45000,
       paidCommission: 20000,
       pendingCommission: 25000,
+      isProfitSharePartner: true,
       createdAt: now,
     },
     {
@@ -594,7 +624,7 @@ function seedEnquiries(): Enquiry[] {
     monthlyBillAmount: 3500 + i * 400,
     pipelineStage: ['Qualify', 'Survey', 'Proposal', 'Won', 'Lost'][i % 5],
     notes: [],
-    status: (['New', 'In Progress', 'Converted', 'Closed', 'New', 'In Progress', 'In Progress', 'Closed', 'New', 'In Progress'][
+    status: (['New', 'Contacted', 'Converted', 'Lost', 'New', 'Contacted', 'Contacted', 'Lost', 'New', 'Contacted'][
       i - 1
     ] ?? 'New') as Enquiry['status'],
     createdAt: now,
@@ -605,7 +635,7 @@ function seedEnquiries(): Enquiry[] {
     mk(1, {
       id: IDS.en1,
       customerName: 'Kiran Joshi',
-      status: 'In Progress',
+      status: 'Contacted',
       phone: '9988776655',
       email: 'kiran.j@gmail.com',
       notes: [
@@ -622,7 +652,7 @@ function seedEnquiries(): Enquiry[] {
       requirements: 'Net metering + 1 backup port',
     }),
     mk(2, { id: 'enq_2', customerName: 'New Lead A', status: 'New' }),
-    mk(3, { id: 'enq_3', customerName: 'New Lead B', status: 'In Progress', source: { type: 'Agent', agentId: IDS.a2 } }),
+    mk(3, { id: 'enq_3', customerName: 'New Lead B', status: 'Contacted', source: { type: 'Agent', agentId: IDS.a2 } }),
     mk(4, { id: 'enq_4', customerName: 'Warehouse Co', type: 'Commercial', systemCapacity: 50, roofType: 'Industrial sheet' }),
     mk(5, {
       id: 'enq_5',
@@ -630,7 +660,7 @@ function seedEnquiries(): Enquiry[] {
       status: 'Converted',
       notes: [{ note: 'Converted to QUO-2026-008', by: 'Amit Patil', updatedBy: IDS.u5, timestamp: now }],
     }),
-    mk(6, { id: 'enq_6', customerName: 'Closed Lead', status: 'Closed' }),
+    mk(6, { id: 'enq_6', customerName: 'Lost Lead', status: 'Lost' }),
     mk(7, { id: 'enq_7', customerName: 'High Pri', priority: 'High' }),
     mk(8, { id: 'enq_8', customerName: 'Medium Pri', priority: 'Medium' }),
     mk(9, { id: 'enq_9', customerName: 'Direct FB', source: { type: 'Direct', directSource: 'Facebook' } }),
@@ -892,6 +922,23 @@ function seedProjects(quotations: Quotation[]): Project[] {
         { id: 'ms_2', materialId: IDS.mat2, quantity: 1, date: `${y}-02-05`, siteId: IDS.s1 },
         { id: 'ms_3', materialId: IDS.mat3, quantity: 1, date: `${y}-02-06`, siteId: IDS.s1 },
       ],
+      loanInstallments: [
+        {
+          id: 'li_j1',
+          sequence: 1,
+          amountInr: 150000,
+          status: 'Received',
+          receivedDate: `${y}-02-10`,
+          receiptRef: 'UTR-882211',
+        },
+        {
+          id: 'li_j2',
+          sequence: 2,
+          amountInr: 115500,
+          status: 'Pending',
+          dueDate: `${y}-05-01`,
+        },
+      ],
     }),
     mk('proj_2', 'Shree Foods 20kW', IDS.c2, 'Partner (Profit Only)', 'New', 20, 1200000, {
       category: 'Commercial',
@@ -939,6 +986,15 @@ function seedSites(): Site[] {
       ],
       siteBlockages: [
         { id: 'sb_demo', description: 'DISCOM inspection slot pending — customer notified', resolved: false, createdAt: now },
+      ],
+      siteDocuments: [
+        {
+          id: 'sdoc_dcr1',
+          kind: 'DCR',
+          title: 'DCR — structure & readiness',
+          notes: 'Signed by site supervisor (demo)',
+          createdAt: now,
+        },
       ],
       soloWorkStatus: {
         updatedAt: now,
@@ -1013,16 +1069,27 @@ function seedSites(): Site[] {
 }
 
 function seedTools(): Tool[] {
+  const meta: { condition: Tool['condition']; lifecycleStatus: Tool['lifecycleStatus']; assign?: string }[] = [
+    { condition: 'Good', lifecycleStatus: 'Available' },
+    { condition: 'Good', lifecycleStatus: 'In Use', assign: IDS.u6 },
+    { condition: 'Not Working', lifecycleStatus: 'Under Repair' },
+    { condition: 'Good', lifecycleStatus: 'Available' },
+    { condition: 'Minor Damage', lifecycleStatus: 'Available' },
+    { condition: 'Major Damage', lifecycleStatus: 'Under Repair' },
+    { condition: 'Good', lifecycleStatus: 'In Use', assign: IDS.u7 },
+    { condition: 'Good', lifecycleStatus: 'Available' },
+  ];
   return Array.from({ length: 8 }, (_, i) => ({
     id: `tool_${i + 1}`,
     name: ['Crimping kit', 'Multimeter', 'Drill', 'Angle grinder', 'Torque wrench', 'Safety harness', 'Ladder 12ft', 'Cable tray bender'][i]!,
     category: 'Installation',
     purchaseRate: 2000 + i * 500,
     purchaseDate: `${y - 1}-06-${String(i + 1).padStart(2, '0')}`,
-    condition: (['Good', 'Good', 'Under Repair', 'Good', 'Good', 'Damaged', 'Good', 'Good'][i] ?? 'Good') as Tool['condition'],
+    condition: meta[i]!.condition,
+    lifecycleStatus: meta[i]!.lifecycleStatus,
+    assignedTo: meta[i]!.assign,
     lastUpdated: now,
     createdAt: now,
-    assignedTo: i < 2 ? IDS.u6 : undefined,
     ...(i === 0
       ? { usefulLifeYears: 5, salvageValue: 400, depreciationMethod: 'SLM' as const }
       : i === 1
@@ -1855,6 +1922,10 @@ function seedMasterData(): MasterData[] {
     { type: 'ExpenseMainCategory', values: ['Site', 'Office', 'Vehicle', 'Marketing'] },
     { type: 'ExpenseSubCategory', values: ['Transport', 'Rent', 'Fuel', 'Events'] },
     { type: 'DocumentTemplate', values: ['Quotation PDF v2', 'Invoice GST', 'LOA standard'] },
+    {
+      type: 'EnquiryPipelineStage',
+      values: ['Lead captured', 'Qualified', 'Proposal shared', 'Negotiation'],
+    },
   ];
   return blocks.flatMap((b) =>
     b.values.map((v, j) => ({
@@ -1875,6 +1946,7 @@ function assertDemoSeedFksDev(): void {
   const cids = new Set(customers.map((x) => x.id));
   const iids = new Set(invoices.map((x) => x.id));
   for (const t of getCollection<Task>('tasks')) {
+    if (t.projectId === '__enquiry__') continue;
     if (!pids.has(t.projectId)) console.warn('[seed FK]', 'task', t.id, 'bad projectId', t.projectId);
   }
   for (const s of getCollection<Site>('sites')) {
@@ -1923,11 +1995,12 @@ export function runSeed(): void {
   const auditLogs = seedAudit(users);
   const { vouchers, lines: ledgerLines } = seedLedgerDemo();
   const profile: CompanyProfile = {
-    name: 'GreenRay Solar Pvt Ltd',
+    name: 'Mahisolar Solution',
     logo: '',
     gst: '27AABCG1234F1Z5',
     address: '402, Business Park, Pune 411045',
     bankAccount: 'HDFC Current A/c 50100*****21',
+    quotationDiscountApprovalThresholdInr: 25000,
   };
 
   const bulkVL = bulkVouchersLedger(now, y);
@@ -1952,7 +2025,21 @@ export function runSeed(): void {
   setCollection('loans', [...fin.loans, ...bulkLoans(now, y)]);
   setCollection('partners', [...fin.partners, ...bulkPartners(now)]);
   setCollection('channelPartners', [...fin.channel, ...bulkChannelPartners(now)]);
-  setCollection('companyExpenses', [...fin.expenses, ...bulkCompanyExpenses(now, y)]);
+  const taxonomySeedCtx = {
+    now,
+    year: y,
+    projectId: IDS.p1,
+    employeeId: IDS.u4,
+    partnerId: IDS.part1,
+    vendorId: IDS.sup1,
+    loanId: 'loan_1',
+  };
+  const taxonomyExpenses = [
+    ...buildTaxonomyCoverageExpenses(taxonomySeedCtx),
+    ...buildExpensePayerVariants(taxonomySeedCtx, ['COMPANY', 'EMPLOYEE', 'OFFICE', 'SITE', 'OWNER', 'PARTNER']),
+  ];
+  const taxonomyIncome = buildTaxonomyCoverageIncome(taxonomySeedCtx);
+  setCollection('companyExpenses', [...fin.expenses, ...bulkCompanyExpenses(now, y), ...taxonomyExpenses]);
   setCollection('saleBills', [...fin.saleBills, ...bulkSaleBills(now, y)]);
   setCollection('employeeExpenses', [...employeeExpenses, ...bulkEmployeeExpenses(now, today)]);
   setCollection('masterData', [...masterData, ...bulkMasterData()]);
@@ -1999,36 +2086,58 @@ export function runSeed(): void {
     },
   ];
   setCollection('notifications', [...notifs, ...bulkNotifications(now)]);
-  setCollection('incomeRecords', [...incomeRecords, ...bulkIncome(now, y)]);
+  setCollection('incomeRecords', [...incomeRecords, ...bulkIncome(now, y), ...taxonomyIncome]);
   setCollection('approvalRequests', [
     {
       id: 'apr_1',
       kind: 'expense',
       status: 'pending',
+      ticketNo: 'TKT-EXP-001',
+      reasonCode: 'Travel / fuel',
       title: 'Site travel — Nashik run',
       detail: 'Toll + fuel for Shree Foods survey',
       amount: 3200,
       payload: {},
       requestedAt: now,
       employeeName: 'Amit Patil',
+      employeeId: IDS.u5,
     },
     {
       id: 'apr_2',
       kind: 'leave',
       status: 'approved',
+      ticketNo: 'TKT-LEV-OK1',
+      reasonCode: 'Casual leave',
       title: 'Casual leave (1 day)',
       detail: 'Family function',
-      payload: {},
+      payload: { employeeId: IDS.u4, date: today },
       requestedAt: now,
       employeeName: 'Priya Kulkarni',
+      employeeId: IDS.u4,
+    },
+    {
+      id: 'apr_lv_pend',
+      kind: 'leave',
+      status: 'pending',
+      ticketNo: 'TKT-LEV-002',
+      reasonCode: 'Sick leave',
+      title: 'Sick leave',
+      detail: 'Fever — need 1 day off',
+      payload: { employeeId: IDS.u6, date: today },
+      requestedAt: now,
+      employeeName: 'Suresh Yadav',
+      employeeId: IDS.u6,
     },
     {
       id: 'apr_3',
       kind: 'blockage',
       status: 'pending',
+      ticketNo: 'TKT-BLK-001',
+      reasonCode: 'Client / DISCOM',
       title: 'DISCOM inspection queue',
       detail: 'Customer Joshi — slot not allocated',
       projectName: 'Joshi Residence 5kW',
+      projectCapacityKw: 5,
       payload: {},
       requestedAt: now,
     },

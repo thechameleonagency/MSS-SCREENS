@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { CardCornerTypeTag, InlineTypeTagDot } from '../../components/ProjectTypeTagBadge';
 import { DocumentPreviewFrame } from '../../components/DocumentPreviewFrame';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
@@ -7,9 +8,15 @@ import { useToast, useDataRefresh } from '../../contexts/AppProviders';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
 import { requirePositiveAmount, optionalNonNegativeNumber, requireNonEmptyTrimmed } from '../../lib/formValidation';
 import { formatINRDecimal, partnerProfitShareType2, partnerContributionTotal } from '../../lib/helpers';
+import {
+  projectDisplayTitleForCard,
+  projectTypeDotClass,
+  shouldPromoteProjectTypeOnListCard,
+} from '../../lib/projectCardTags';
 import { computeGstBreakup, gstinSameState, invoiceGrandTotal } from '../../lib/gstCompute';
 import { exportDomToPdf } from '../../lib/pdfExport';
 import { generateId, getCollection, getItem, setCollection } from '../../lib/storage';
+import { cn } from '../../lib/utils';
 import type {
   ChannelPartner,
   ChannelPartnerFee,
@@ -372,6 +379,8 @@ export function VendorDetail() {
   const vpay = useLiveCollection<VendorPayment>('vendorPayments');
   const { bump } = useDataRefresh();
   const { show } = useToast();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', contact: '', email: '', address: '', category: '' });
   const [payOpen, setPayOpen] = useState(false);
   const [billId, setBillId] = useState('');
   const [pamt, setPamt] = useState('');
@@ -383,6 +392,45 @@ export function VendorDetail() {
 
   if (!s) return <p>Not found</p>;
   const supplier = s;
+
+  function openEdit() {
+    setEditForm({
+      name: supplier.name,
+      contact: supplier.contact,
+      email: supplier.email,
+      address: supplier.address,
+      category: String(supplier.category ?? ''),
+    });
+    setEditOpen(true);
+  }
+
+  function saveVendorEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = editForm.name.trim();
+    if (!name) {
+      show('Name required', 'error');
+      return;
+    }
+    const list = getCollection<Supplier>('suppliers');
+    setCollection(
+      'suppliers',
+      list.map((sup) =>
+        sup.id === supplier.id
+          ? {
+              ...sup,
+              name,
+              contact: editForm.contact.trim(),
+              email: editForm.email.trim(),
+              address: editForm.address.trim(),
+              category: editForm.category.trim() || undefined,
+            }
+          : sup
+      )
+    );
+    bump();
+    setEditOpen(false);
+    show('Vendor updated', 'success');
+  }
 
   function recordVendorPay() {
     const bill = bills.find((b) => b.id === billId);
@@ -432,12 +480,45 @@ export function VendorDetail() {
       <Link to="/finance/vendors" className="text-sm text-primary">
         ← Back
       </Link>
-      <h1 className="text-2xl font-bold">{supplier.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">{supplier.name}</h1>
+        <ShellButton type="button" variant="secondary" onClick={openEdit}>
+          Edit vendor
+        </ShellButton>
+      </div>
       <div className="rounded-lg border bg-card p-4 text-sm">
         <p>{supplier.contact} · {supplier.email}</p>
         <p>{supplier.address}</p>
+        {supplier.category && <p className="mt-1 text-muted-foreground">Category: {supplier.category}</p>}
         <p className="mt-2">Outstanding: {formatINRDecimal(supplier.outstanding)}</p>
       </div>
+      <Modal open={editOpen} title="Edit vendor" onClose={() => setEditOpen(false)}>
+        <form className="space-y-3 text-sm" onSubmit={saveVendorEdit}>
+          <label className="block">
+            Name *
+            <input className="input-shell mt-1 w-full" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+          </label>
+          <label className="block">
+            Contact
+            <input className="input-shell mt-1 w-full" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} />
+          </label>
+          <label className="block">
+            Email
+            <input type="email" className="input-shell mt-1 w-full" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+          </label>
+          <label className="block">
+            Address
+            <textarea className="input-shell mt-1 min-h-[4rem] w-full" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+          </label>
+          <label className="block">
+            Category
+            <input className="input-shell mt-1 w-full" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
+          </label>
+          <ShellButton type="submit" variant="primary">
+            Save
+          </ShellButton>
+        </form>
+      </Modal>
       <div className="flex justify-between items-center">
         <h2 className="font-semibold">Purchase bills</h2>
         <button type="button" className="text-sm text-primary" onClick={() => setPayOpen(true)}>
@@ -493,6 +574,8 @@ export function PartnerDetail() {
   const [laborDesc, setLaborDesc] = useState('');
   const [laborHours, setLaborHours] = useState('');
   const [laborCost, setLaborCost] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', contact: '', profitSharePercent: '' });
 
   const p = partners.find((x) => x.id === id);
   if (!p) return <p>Not found</p>;
@@ -500,7 +583,7 @@ export function PartnerDetail() {
 
   const linked = projects.filter(
     (pr) =>
-      pr.partnerId === partner.id &&
+      (pr.partnerId === partner.id || (pr.coPartnerIds ?? []).includes(partner.id)) &&
       (pr.type === 'Partner (Profit Only)' || pr.type === 'Partner with Contributions')
   );
 
@@ -514,6 +597,39 @@ export function PartnerDetail() {
             partnerContributionTotal(pr) * (partner.profitSharePercent / 100),
     }));
   }, [linked, partner.profitSharePercent]);
+
+  function openPartnerEdit() {
+    setEditForm({
+      name: partner.name,
+      contact: partner.contact,
+      profitSharePercent: String(partner.profitSharePercent),
+    });
+    setEditOpen(true);
+  }
+
+  function savePartnerEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = editForm.name.trim();
+    if (!name) {
+      show('Name required', 'error');
+      return;
+    }
+    const pct = Number(editForm.profitSharePercent);
+    if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+      show('Profit share must be between 0 and 100', 'error');
+      return;
+    }
+    const list = getCollection<Partner>('partners');
+    setCollection(
+      'partners',
+      list.map((x) =>
+        x.id === partner.id ? { ...x, name, contact: editForm.contact.trim(), profitSharePercent: pct } : x
+      )
+    );
+    bump();
+    setEditOpen(false);
+    show('Partner updated', 'success');
+  }
 
   function settle() {
     const amount = Number(setAmt);
@@ -595,7 +711,12 @@ export function PartnerDetail() {
       <Link to="/finance/partners" className="text-sm text-primary">
         ← Back
       </Link>
-      <h1 className="text-2xl font-bold">{partner.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">{partner.name}</h1>
+        <ShellButton type="button" variant="secondary" onClick={openPartnerEdit}>
+          Edit partner
+        </ShellButton>
+      </div>
       <p className="text-sm">Profit share: {partner.profitSharePercent}% · {partner.contact}</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground" onClick={() => setSettleOpen(true)}>
@@ -607,16 +728,36 @@ export function PartnerDetail() {
       </div>
       <h2 className="font-semibold">Linked projects</h2>
       <ul className="text-sm space-y-2">
-        {suggested.map(({ project, share }) => (
-          <li key={project.id} className="rounded border p-2">
-            <Link className="text-primary" to={`/projects/${project.id}`}>
-              {project.name}
-            </Link>
-            <div className="text-xs text-muted-foreground">
-              {project.type} · Est. share: {formatINRDecimal(Math.max(0, share))}
-            </div>
-          </li>
-        ))}
+        {suggested.map(({ project, share }) => {
+          const promote = shouldPromoteProjectTypeOnListCard(project);
+          const dot = projectTypeDotClass(project.type);
+          return (
+            <li key={project.id} className={cn('rounded border p-2', promote && 'relative pr-14 pt-1')}>
+              {promote && (
+                <CardCornerTypeTag
+                  label={project.type}
+                  dotClass={dot}
+                  className="right-1.5 top-1.5 max-w-[min(11rem,72%)] scale-[0.92]"
+                />
+              )}
+              <Link className="text-primary" to={`/projects/${project.id}`}>
+                {promote ? projectDisplayTitleForCard(project) : project.name}
+              </Link>
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                {promote ? (
+                  <>
+                    <InlineTypeTagDot label={project.type} dotClass={dot} />
+                    <span>Est. share: {formatINRDecimal(Math.max(0, share))}</span>
+                  </>
+                ) : (
+                  <span>
+                    {project.type} · Est. share: {formatINRDecimal(Math.max(0, share))}
+                  </span>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       <h2 className="font-semibold">Settlements</h2>
       <ul className="text-sm">
@@ -628,6 +769,33 @@ export function PartnerDetail() {
             </li>
           ))}
       </ul>
+      <Modal open={editOpen} title="Edit partner" onClose={() => setEditOpen(false)}>
+        <form className="space-y-3 text-sm" onSubmit={savePartnerEdit}>
+          <label className="block">
+            Name *
+            <input className="input-shell mt-1 w-full" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+          </label>
+          <label className="block">
+            Contact
+            <input className="input-shell mt-1 w-full" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} />
+          </label>
+          <label className="block">
+            Profit share %
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              className="input-shell mt-1 w-full"
+              value={editForm.profitSharePercent}
+              onChange={(e) => setEditForm({ ...editForm, profitSharePercent: e.target.value })}
+            />
+          </label>
+          <ShellButton type="submit" variant="primary">
+            Save
+          </ShellButton>
+        </form>
+      </Modal>
       <Modal open={settleOpen} title="Partner settlement" onClose={() => setSettleOpen(false)}>
         <select className="mb-2 w-full rounded border px-3 py-2" value={projPick} onChange={(e) => setProjPick(e.target.value)}>
           <option value="">All / no project</option>
@@ -692,6 +860,14 @@ export function ChannelPartnerDetail() {
   const [amt, setAmt] = useState('');
   const [pid, setPid] = useState('');
   const [notes, setNotes] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    vendorCode: '',
+    contact: '',
+    feeStructure: 'Per kW' as ChannelPartner['feeStructure'],
+    feeAmount: '',
+  });
 
   const cp = cps.find((x) => x.id === id);
   if (!cp) return <p>Not found</p>;
@@ -699,6 +875,50 @@ export function ChannelPartnerDetail() {
 
   const linked = projects.filter((pr) => pr.channelPartnerId === channelPartner.id);
   const myFees = fees.filter((f) => f.channelPartnerId === channelPartner.id);
+
+  function openChannelEdit() {
+    setEditForm({
+      name: channelPartner.name,
+      vendorCode: channelPartner.vendorCode,
+      contact: channelPartner.contact,
+      feeStructure: channelPartner.feeStructure,
+      feeAmount: String(channelPartner.feeAmount),
+    });
+    setEditOpen(true);
+  }
+
+  function saveChannelEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = editForm.name.trim();
+    if (!name) {
+      show('Name required', 'error');
+      return;
+    }
+    const feeAmount = Number(editForm.feeAmount);
+    if (Number.isNaN(feeAmount) || feeAmount < 0) {
+      show('Fee amount must be a non-negative number', 'error');
+      return;
+    }
+    const list = getCollection<ChannelPartner>('channelPartners');
+    setCollection(
+      'channelPartners',
+      list.map((x) =>
+        x.id === channelPartner.id
+          ? {
+              ...x,
+              name,
+              vendorCode: editForm.vendorCode.trim(),
+              contact: editForm.contact.trim(),
+              feeStructure: editForm.feeStructure,
+              feeAmount,
+            }
+          : x
+      )
+    );
+    bump();
+    setEditOpen(false);
+    show('Channel partner updated', 'success');
+  }
 
   function addFee() {
     const amount = Number(amt);
@@ -729,13 +949,60 @@ export function ChannelPartnerDetail() {
       <Link to="/finance/channel-partners" className="text-sm text-primary">
         ← Back
       </Link>
-      <h1 className="text-2xl font-bold">{channelPartner.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">{channelPartner.name}</h1>
+        <ShellButton type="button" variant="secondary" onClick={openChannelEdit}>
+          Edit channel partner
+        </ShellButton>
+      </div>
       <p className="text-sm">
-        Code {channelPartner.vendorCode} · {channelPartner.feeStructure} ₹{channelPartner.feeAmount}
+        Code {channelPartner.vendorCode} · {channelPartner.contact} · {channelPartner.feeStructure} ₹{channelPartner.feeAmount}
       </p>
       <button type="button" className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground" onClick={() => setOpen(true)}>
         Record fee payment
       </button>
+      <Modal open={editOpen} title="Edit channel partner" onClose={() => setEditOpen(false)}>
+        <form className="space-y-3 text-sm" onSubmit={saveChannelEdit}>
+          <label className="block">
+            Name *
+            <input className="input-shell mt-1 w-full" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+          </label>
+          <label className="block">
+            Vendor code
+            <input className="input-shell mt-1 w-full" value={editForm.vendorCode} onChange={(e) => setEditForm({ ...editForm, vendorCode: e.target.value })} />
+          </label>
+          <label className="block">
+            Contact
+            <input className="input-shell mt-1 w-full" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} />
+          </label>
+          <label className="block">
+            Fee structure
+            <select
+              className="select-shell mt-1 w-full"
+              value={editForm.feeStructure}
+              onChange={(e) => setEditForm({ ...editForm, feeStructure: e.target.value as ChannelPartner['feeStructure'] })}
+            >
+              <option value="Per kW">Per kW</option>
+              <option value="Fixed">Fixed</option>
+              <option value="Percentage">Percentage</option>
+            </select>
+          </label>
+          <label className="block">
+            Fee amount (₹ or % as per structure)
+            <input
+              type="number"
+              min={0}
+              step={1}
+              className="input-shell mt-1 w-full"
+              value={editForm.feeAmount}
+              onChange={(e) => setEditForm({ ...editForm, feeAmount: e.target.value })}
+            />
+          </label>
+          <ShellButton type="submit" variant="primary">
+            Save
+          </ShellButton>
+        </form>
+      </Modal>
       <h2 className="font-semibold">Projects</h2>
       <ul className="text-sm">
         {linked.map((pr) => (

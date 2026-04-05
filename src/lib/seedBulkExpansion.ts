@@ -90,7 +90,7 @@ export function bulkCustomers(ts: string): Customer[] {
 }
 
 export function bulkEnquiries(ts: string): Enquiry[] {
-  const statuses: Enquiry['status'][] = ['New', 'In Progress', 'Converted', 'Closed'];
+  const statuses: Enquiry['status'][] = ['New', 'Contacted', 'Converted', 'Lost'];
   const sources: Enquiry['source'][] = [
     { type: 'Agent', agentId: 'agt_ramesh' },
     { type: 'Direct', directSource: 'Instagram' },
@@ -100,7 +100,7 @@ export function bulkEnquiries(ts: string): Enquiry[] {
     { type: 'Online', directSource: 'Google Ads' },
     { type: 'Social' },
   ];
-  return Array.from({ length: 10 }, (_, i) => ({
+  return Array.from({ length: 20 }, (_, i) => ({
     id: `enq_bulk_${i}`,
     customerName: `Bulk Lead ${i + 1}`,
     phone: `91${String(8800000000 + i)}`,
@@ -122,7 +122,7 @@ export function bulkEnquiries(ts: string): Enquiry[] {
 }
 
 export function bulkQuotations(ts: string, presetId: string): Quotation[] {
-  return Array.from({ length: 8 }, (_, i) => {
+  return Array.from({ length: 14 }, (_, i) => {
     const cid = CIDS[i % CIDS.length]!;
     const lineItems = [
       {
@@ -160,7 +160,7 @@ export function bulkProjects(ts: string): Project[] {
     'Partner with Contributions',
   ];
   const stat: Project['status'][] = ['New', 'In Progress', 'Completed', 'On Hold', 'Closed'];
-  return Array.from({ length: 8 }, (_, i) => {
+  return Array.from({ length: 14 }, (_, i) => {
     const t = types[i % types.length]!;
     const steps =
       t === 'Vendorship Fee'
@@ -175,7 +175,7 @@ export function bulkProjects(ts: string): Project[] {
       category: i % 2 === 0 ? 'Residential' : 'Commercial',
       status: stat[i % stat.length]!,
       customerId: CIDS[i % CIDS.length]!,
-      quotationId: `quo_bulk_${i % 8}`,
+      quotationId: `quo_bulk_${i % 14}`,
       capacity: 4 + i,
       contractAmount: 200000 + i * 45000,
       startDate: `${new Date().getFullYear()}-0${(i % 9) + 1}-15`,
@@ -204,7 +204,7 @@ export function bulkSites(ts: string): Site[] {
       });
     }
   });
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 14; i++) {
     out.push({
       id: `site_bulk_${i}`,
       projectId: `proj_bulk_${i}`,
@@ -226,8 +226,11 @@ export function bulkTools(ts: string): Tool[] {
     category: 'Installation',
     purchaseRate: 3500 + i * 1200,
     purchaseDate: `${new Date().getFullYear() - 1}-08-${String(i + 1).padStart(2, '0')}`,
-    condition: (['Good', 'Fair', 'Under Repair', 'Good', 'Good', 'Damaged'] as const)[i] ?? 'Good',
-    lifecycleStatus: (['Available', 'In Use', 'Under Repair'] as const)[i % 3],
+    usefulLifeYears: 5 + (i % 4),
+    salvageValue: 500 + i * 100,
+    condition: (['Good', 'Minor Damage', 'Not Working', 'Good', 'Good', 'Major Damage'] as const)[i] ?? 'Good',
+    lifecycleStatus:
+      i === 2 || i === 5 ? ('Under Repair' as const) : (['Available', 'In Use', 'Available'] as const)[i % 3],
     lastUpdated: ts,
     createdAt: ts,
     assignedTo: i % 2 === 0 ? UIDS[5] : undefined,
@@ -338,22 +341,45 @@ export function bulkInvoicesPayments(
   const invoices: Invoice[] = [];
   const payments: Payment[] = [];
   let n = 0;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 18; i++) {
     const pid = PIDS[i % PIDS.length]!;
     const cid = CIDS[i % CIDS.length]!;
     const total = 80000 + i * 12000;
     const received = i % 4 === 0 ? 0 : Math.round(total * 0.4);
     const id = `inv_bulk_${i}`;
+    const taxable = Math.round(total / 1.18);
+    const totalTax = total - taxable;
+    const halfTax = Math.round(totalTax / 2);
     invoices.push({
       id,
       projectId: pid,
       customerId: cid,
       invoiceNumber: `INV-BULK-${200 + i}`,
-      date: `${y}-04-${String(i + 1).padStart(2, '0')}`,
+      date: `${y}-04-${String((i % 28) + 1).padStart(2, '0')}`,
       total,
       received,
       balance: total - received,
       status: received === 0 ? 'Unpaid' : received >= total ? 'Paid' : 'Partial',
+      gstBreakup:
+        i % 5 !== 0
+          ? { taxableValue: taxable, cgst: halfTax, sgst: halfTax, igst: 0, totalTax }
+          : {
+              taxableValue: taxable,
+              cgst: 0,
+              sgst: 0,
+              igst: totalTax,
+              totalTax,
+            },
+      lineItems: [
+        {
+          description: i % 5 !== 0 ? 'Solar EPC supply & install' : 'Inter-state supply (IGST)',
+          hsn: '85044090',
+          quantity: 1,
+          rate: taxable,
+          gstRate: 18,
+          amount: taxable,
+        },
+      ],
       createdAt: ts,
     });
     if (received > 0) {
@@ -372,22 +398,30 @@ export function bulkInvoicesPayments(
 }
 
 export function bulkSaleBills(ts: string, y: number): SaleBill[] {
-  return Array.from({ length: 8 }, (_, i) => ({
-    id: `sb_bulk_${i}`,
-    projectId: PIDS[i % PIDS.length]!,
-    customerId: CIDS[i % CIDS.length]!,
-    billNumber: `SB-BULK-${i}`,
-    date: `${y}-03-${String(i + 5).padStart(2, '0')}`,
-    total: 15000 + i * 3000,
-    received: i % 3 === 0 ? 0 : 8000 + i * 1000,
-    balance: 0,
-    status: (['Paid', 'Partial', 'Unpaid'] as SaleBill['status'][])[i % 3]!,
-    createdAt: ts,
-  })).map((b) => ({ ...b, balance: b.total - b.received }));
+  return Array.from({ length: 14 }, (_, i) => {
+    const total = 15000 + i * 3000;
+    const received = i % 3 === 0 ? 0 : 8000 + i * 1000;
+    const taxable = Math.round(total / 1.18);
+    const tt = total - taxable;
+    const h = Math.round(tt / 2);
+    return {
+      id: `sb_bulk_${i}`,
+      projectId: PIDS[i % PIDS.length]!,
+      customerId: CIDS[i % CIDS.length]!,
+      billNumber: `SB-BULK-${i}`,
+      date: `${y}-03-${String(i + 5).padStart(2, '0')}`,
+      total,
+      received,
+      balance: total - received,
+      status: (['Paid', 'Partial', 'Unpaid'] as SaleBill['status'][])[i % 3]!,
+      gstBreakup: { taxableValue: taxable, cgst: h, sgst: h, igst: 0, totalTax: tt },
+      createdAt: ts,
+    };
+  });
 }
 
 export function bulkSuppliers(ts: string): Supplier[] {
-  return Array.from({ length: 8 }, (_, i) => ({
+  return Array.from({ length: 14 }, (_, i) => ({
     id: `sup_bulk_${i}`,
     name: `Supplier Demo ${i + 1}`,
     contact: `90${String(1110000000 + i)}`,
@@ -402,7 +436,7 @@ export function bulkSuppliers(ts: string): Supplier[] {
 }
 
 export function bulkPurchaseBills(ts: string, y: number): PurchaseBill[] {
-  return Array.from({ length: 8 }, (_, i) => {
+  return Array.from({ length: 14 }, (_, i) => {
     const qty = 10 + i;
     const rate = 1000 + i * 100;
     const lineTotal = qty * rate;
@@ -412,7 +446,7 @@ export function bulkPurchaseBills(ts: string, y: number): PurchaseBill[] {
     const igst = interState ? Math.round(lineTotal * 0.18) : undefined;
     return {
       id: `pb_bulk_${i}`,
-      supplierId: `sup_bulk_${i % 8}`,
+      supplierId: `sup_bulk_${i % 14}`,
       billNumber: `PB-BULK-${300 + i}`,
       date: `${y}-02-${String(i + 1).padStart(2, '0')}`,
       items: [
@@ -438,10 +472,10 @@ export function bulkPurchaseBills(ts: string, y: number): PurchaseBill[] {
 }
 
 export function bulkVendorPayments(ts: string, y: number): VendorPayment[] {
-  return Array.from({ length: 8 }, (_, i) => ({
+  return Array.from({ length: 14 }, (_, i) => ({
     id: `vp_bulk_${i}`,
-    purchaseBillId: `pb_bulk_${i % 8}`,
-    supplierId: `sup_bulk_${i % 8}`,
+    purchaseBillId: `pb_bulk_${i % 14}`,
+    supplierId: `sup_bulk_${i % 14}`,
     amount: 10000 + i * 5000,
     date: `${y}-03-${String(i + 1).padStart(2, '0')}`,
     createdAt: ts,
@@ -587,6 +621,7 @@ export function bulkMasterData(): MasterData[] {
     'ExpenseMainCategory',
     'ExpenseSubCategory',
     'DocumentTemplate',
+    'EnquiryPipelineStage',
   ];
   const out: MasterData[] = [];
   let o = 0;
@@ -627,6 +662,8 @@ export function bulkApprovals(ts: string): ApprovalRequest[] {
       id: `apr_bulk_${i}`,
       kind: kinds[i % 3]!,
       status: status[i % 3]!,
+      ticketNo: `TKT-BLK-${String(i).padStart(3, '0')}`,
+      reasonCode: kinds[i % 3]!,
       title: `Approval ${i + 1}`,
       detail: 'Bulk demo approval row',
       amount: 500 + i * 200,
@@ -639,15 +676,29 @@ export function bulkApprovals(ts: string): ApprovalRequest[] {
 }
 
 export function bulkAudit(users: User[], ts: string): AuditLogEntry[] {
-  return Array.from({ length: 10 }, (_, i) => ({
+  const base = new Date(ts).getTime();
+  return Array.from({ length: 48 }, (_, i) => ({
     id: `aud_bulk_${i}`,
-    timestamp: ts,
+    timestamp: new Date(base - i * 3600_000).toISOString(),
     userId: users[i % users.length]!.id,
     userName: users[i % users.length]!.name,
     action: (['create', 'update', 'delete'] as AuditLogEntry['action'][])[i % 3]!,
-    entityType: ['Project', 'Invoice', 'Payment'][i % 3]!,
+    entityType: (
+      [
+        'Project',
+        'Invoice',
+        'Payment',
+        'CompanyExpense',
+        'Quotation',
+        'Task',
+        'MaterialTransfer',
+        'PartnerSettlement',
+      ] as const
+    )[i % 8]!,
     entityId: `ent_${i}`,
     entityName: `Entity ${i}`,
+    field: i % 4 === 0 ? 'status' : undefined,
+    newValue: i % 4 === 0 ? 'Updated' : undefined,
   }));
 }
 

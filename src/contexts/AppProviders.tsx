@@ -44,6 +44,7 @@ export function useToast(): ToastCtx {
 const ROLES: UserRole[] = [
   'Super Admin',
   'Admin',
+  'CEO',
   'Management',
   'Salesperson',
   'Installation Team',

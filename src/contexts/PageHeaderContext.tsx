@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -19,7 +20,12 @@ export type PageHeaderOverride = {
   /** Optional parent link; layout no longer renders a back control (breadcrumbs only). */
   backTo?: string;
   backLabel?: string;
-  /** Filters and toolbars — rendered below the breadcrumb row. */
+  /**
+   * Filters / search / chips — scrolls with page content (not sticky).
+   * Prefer this over `toolbarBelow` (alias).
+   */
+  filtersToolbar?: ReactNode;
+  /** @deprecated Use `filtersToolbar` — same slot, kept for backward compatibility. */
   toolbarBelow?: ReactNode;
 };
 
@@ -50,7 +56,7 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
       actions: override?.actions,
       backTo: override?.backTo,
       backLabel: override?.backLabel,
-      toolbarBelow: override?.toolbarBelow,
+      filtersToolbar: override?.filtersToolbar ?? override?.toolbarBelow,
     }),
     [defaults, override]
   );
@@ -68,7 +74,7 @@ type MergedHeader = ReturnType<typeof getPageMeta> & {
   actions?: ReactNode;
   backTo?: string;
   backLabel?: string;
-  toolbarBelow?: ReactNode;
+  filtersToolbar?: ReactNode;
 };
 const MergedPageHeaderContext = createContext<MergedHeader | null>(null);
 
@@ -82,10 +88,19 @@ export function usePageHeader(patch: PageHeaderOverride) {
   const ctx = useContext(PageOverrideContext);
   if (!ctx) throw new Error('usePageHeader outside PageHeaderProvider');
   const { setPageOverride } = ctx;
-  const { title, subtitle, actions, breadcrumbs, backTo, backLabel, toolbarBelow } = patch;
+  const { title, subtitle, actions, breadcrumbs, backTo, backLabel, toolbarBelow, filtersToolbar } = patch;
+  const resolvedFilters = filtersToolbar ?? toolbarBelow;
 
-  useEffect(() => {
-    setPageOverride({ title, subtitle, actions, breadcrumbs, backTo, backLabel, toolbarBelow });
+  useLayoutEffect(() => {
+    setPageOverride({
+      title,
+      subtitle,
+      actions,
+      breadcrumbs,
+      backTo,
+      backLabel,
+      filtersToolbar: resolvedFilters,
+    });
     return () => setPageOverride(null);
-  }, [setPageOverride, title, subtitle, actions, breadcrumbs, backTo, backLabel, toolbarBelow]);
+  }, [setPageOverride, title, subtitle, actions, breadcrumbs, backTo, backLabel, resolvedFilters]);
 }

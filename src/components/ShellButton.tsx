@@ -13,9 +13,9 @@ type Variant =
 
 const variants: Record<Variant, string> = {
   default:
-    'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
+    'bg-primary text-primary-foreground shadow-sm hover:bg-primary/88',
   primary:
-    'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
+    'bg-primary text-primary-foreground shadow-sm hover:bg-[hsl(217_72%_28%)]',
   destructive:
     'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
   outline:

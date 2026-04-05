@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { DataTableShell, dataTableClasses } from '../../components/DataTableShell';
+import { DataTableShell, DATA_TABLE_LIST_BODY_MAX_HEIGHT, dataTableClasses } from '../../components/DataTableShell';
+import { TablePaginationBar, TABLE_DEFAULT_PAGE_SIZE } from '../../components/TablePaginationBar';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
 import { cn } from '../../lib/utils';
@@ -9,36 +10,126 @@ import { useToast, useDataRefresh, useRole } from '../../contexts/AppProviders';
 import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
 import { defaultExpenseTagForRole, formatINRDecimal, perDayRate, taskEffectiveStatus, WORKING_DAYS_PER_MONTH } from '../../lib/helpers';
+import { filterSitesForAttendance, projectIsActivePipeline, projectIsCompletedClosed } from '../../lib/siteEligibility';
 import { exportDomToPdf } from '../../lib/pdfExport';
+import { TASK_PROJECT_ENQUIRY_PLACEHOLDER } from '../../lib/enquiryConstants';
 import { generateId, getCollection, getItem, setCollection } from '../../lib/storage';
 import type {
   Attendance,
   CompanyHoliday,
   CompanyProfile,
   EmployeeExpense,
+  Enquiry,
   PayrollRecord,
   Project,
   Site,
   Task,
   User,
+  UserRole,
 } from '../../types';
+
+const EMP_ROLE_FILTER_W = '12rem';
 
 export function EmployeesList() {
   const users = useLiveCollection<User>('users');
   const { bump } = useDataRefresh();
   const { show } = useToast();
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(TABLE_DEFAULT_PAGE_SIZE);
+
+  const filteredUsers = useMemo(() => {
+    const qq = q.trim().toLowerCase();
+    return users.filter((u) => {
+      const matchQ =
+        !qq ||
+        u.name.toLowerCase().includes(qq) ||
+        (u.email ?? '').toLowerCase().includes(qq) ||
+        (u.phone ?? '').includes(q.replace(/\D/g, '')) ||
+        (u.phone ?? '').toLowerCase().includes(qq);
+      const matchRole = !roleFilter || u.role === roleFilter;
+      const matchTag = !tagFilter || u.expenseTag === tagFilter;
+      return matchQ && matchRole && matchTag;
+    });
+  }, [users, q, roleFilter, tagFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filteredUsers.length, pageSize, q, roleFilter, tagFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const pagedUsers = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return filteredUsers.slice(s, s + pageSize);
+  }, [filteredUsers, page, pageSize]);
+
+  const salaryTotal = useMemo(() => filteredUsers.reduce((s, u) => s + (u.salary ?? 0), 0), [filteredUsers]);
+
+  const tagOptions = useMemo(() => {
+    const s = new Set(users.map((u) => u.expenseTag).filter(Boolean));
+    return [...s].sort();
+  }, [users]);
+
   const empHeader = useMemo(
     () => ({
       title: 'Employees',
-      subtitle: 'Roles, salary, and expense tags',
+      subtitle: `Team roster · ${filteredUsers.length} in view · combined salary ${formatINRDecimal(salaryTotal)}`,
       actions: (
         <ShellButton type="button" variant="primary" onClick={() => setOpen(true)}>
           Add employee
         </ShellButton>
       ),
+      filtersToolbar: (
+        <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-4 sm:gap-y-3">
+          <div className="flex min-w-0 flex-wrap items-end gap-2">
+            <input
+              className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
+              placeholder="Name, email, phone…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Search employees"
+            />
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Role</span>
+              <select
+                className="select-shell h-10 shrink-0"
+                style={{ width: EMP_ROLE_FILTER_W }}
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                aria-label="Filter by role"
+              >
+                <option value="">All roles</option>
+                {(['Super Admin', 'Admin', 'CEO', 'Management', 'Salesperson', 'Installation Team'] as const).map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Expense tag</span>
+              <select
+                className="select-shell h-10 min-w-[10rem] shrink-0"
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+                aria-label="Filter by expense tag"
+              >
+                <option value="">All tags</option>
+                {tagOptions.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+      ),
     }),
-    []
+    [filteredUsers.length, salaryTotal, q, roleFilter, tagFilter, tagOptions]
   );
   usePageHeader(empHeader);
   const [name, setName] = useState('');
@@ -77,25 +168,25 @@ export function EmployeesList() {
   return (
     <div className="space-y-4">
       <Card padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/90">
+        <DataTableShell bare bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
+          <table className={dataTableClasses}>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Name</th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Role</th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Tag</th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Salary</th>
-                <th className="px-4 py-3" />
+                <th>Name</th>
+                <th>Role</th>
+                <th>Tag</th>
+                <th>Salary</th>
+                <th className="w-24" />
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-t border-border transition hover:bg-muted/80">
-                  <td className="px-4 py-3 font-medium text-foreground">{u.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.role}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.expenseTag}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatINRDecimal(u.salary)}</td>
-                  <td className="px-4 py-3">
+              {pagedUsers.map((u) => (
+                <tr key={u.id}>
+                  <td className="font-medium text-foreground">{u.name}</td>
+                  <td className="text-muted-foreground">{u.role}</td>
+                  <td className="text-muted-foreground">{u.expenseTag}</td>
+                  <td className="text-muted-foreground">{formatINRDecimal(u.salary)}</td>
+                  <td>
                     <Link className="font-medium text-primary hover:text-primary/90" to={`/hr/employees/${u.id}`}>
                       View
                     </Link>
@@ -103,9 +194,32 @@ export function EmployeesList() {
                 </tr>
               ))}
             </tbody>
+            {filteredUsers.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/40 font-medium text-foreground">
+                  <td colSpan={3} className="py-2 text-muted-foreground">
+                    Totals ({filteredUsers.length} employees)
+                  </td>
+                  <td className="py-2 tabular-nums">{formatINRDecimal(salaryTotal)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
-        </div>
+        </DataTableShell>
       </Card>
+      {filteredUsers.length > 0 && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <TablePaginationBar
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalCount={filteredUsers.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      )}
       <Modal open={open} title="Add employee" onClose={() => setOpen(false)} wide>
         <form className="grid gap-2 sm:grid-cols-2" onSubmit={add}>
           <input
@@ -116,7 +230,7 @@ export function EmployeesList() {
             onChange={(e) => setName(e.target.value)}
           />
           <select className="select-shell" value={role} onChange={(e) => setRole(e.target.value as User['role'])}>
-            {(['Super Admin', 'Admin', 'Management', 'Salesperson', 'Installation Team'] as const).map((r) => (
+            {(['Super Admin', 'Admin', 'CEO', 'Management', 'Salesperson', 'Installation Team'] as const).map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
@@ -147,6 +261,15 @@ export function EmployeeDetail() {
   const { show } = useToast();
   const u = users.find((x) => x.id === id);
   const [docs, setDocs] = useState({ aadhaar: '', pan: '', photo: '', offerLetter: '' });
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    salary: '',
+    role: 'Installation Team' as UserRole,
+    jobTitle: '',
+  });
 
   useEffect(() => {
     const row = users.find((x) => x.id === id);
@@ -181,10 +304,66 @@ export function EmployeeDetail() {
     show('Document links saved', 'success');
   }
 
+  function openEmployeeEdit() {
+    if (!u) return;
+    setEditForm({
+      name: u.name,
+      phone: u.phone,
+      email: u.email,
+      salary: String(u.salary),
+      role: u.role,
+      jobTitle: u.jobTitle ?? '',
+    });
+    setEditOpen(true);
+  }
+
+  function saveEmployeeEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!u) return;
+    const name = editForm.name.trim();
+    if (!name) {
+      show('Name required', 'error');
+      return;
+    }
+    const salary = Number(editForm.salary);
+    if (Number.isNaN(salary) || salary < 0) {
+      show('Salary must be a non-negative number', 'error');
+      return;
+    }
+    const list = getCollection<User>('users');
+    const tag = defaultExpenseTagForRole(editForm.role);
+    setCollection(
+      'users',
+      list.map((x) =>
+        x.id === u.id
+          ? {
+              ...x,
+              name,
+              phone: editForm.phone.replace(/\D/g, '').slice(-10),
+              email: editForm.email.trim(),
+              salary,
+              role: editForm.role,
+              expenseTag: tag,
+              jobTitle: editForm.jobTitle.trim() || undefined,
+              updatedAt: new Date().toISOString(),
+            }
+          : x
+      )
+    );
+    bump();
+    setEditOpen(false);
+    show('Employee updated', 'success');
+  }
+
   if (!u) return <p className="text-muted-foreground">Not found</p>;
   return (
     <div className="space-y-4">
       <Card>
+        <div className="mb-3 flex justify-end">
+          <ShellButton type="button" variant="secondary" size="sm" onClick={openEmployeeEdit}>
+            Edit employee
+          </ShellButton>
+        </div>
         <div className="text-sm text-foreground space-y-2">
           <p>
             <span className="text-muted-foreground">Phone</span> · {u.phone}
@@ -196,6 +375,61 @@ export function EmployeeDetail() {
           <p>Per-day rate (÷{WORKING_DAYS_PER_MONTH}): {formatINRDecimal(perDayRate(u.salary))}</p>
         </div>
       </Card>
+      <Modal open={editOpen} title="Edit employee" onClose={() => setEditOpen(false)} wide>
+        <form className="grid gap-3 sm:grid-cols-2 text-sm" onSubmit={saveEmployeeEdit}>
+          <label className="sm:col-span-2">
+            Name *
+            <input className="input-shell mt-1 w-full" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+          </label>
+          <label>
+            Phone
+            <input className="input-shell mt-1 w-full" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+          </label>
+          <label>
+            Email
+            <input type="email" className="input-shell mt-1 w-full" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+          </label>
+          <label>
+            Salary / month (₹)
+            <input type="number" min={0} className="input-shell mt-1 w-full" value={editForm.salary} onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })} />
+          </label>
+          <label>
+            Job title
+            <input className="input-shell mt-1 w-full" value={editForm.jobTitle} onChange={(e) => setEditForm({ ...editForm, jobTitle: e.target.value })} />
+          </label>
+          <label className="sm:col-span-2">
+            Role (permissions)
+            <select
+              className="select-shell mt-1 w-full"
+              value={editForm.role}
+              onChange={(e) => setEditForm({ ...editForm, role: e.target.value as UserRole })}
+            >
+              {(
+                [
+                  'Super Admin',
+                  'Admin',
+                  'CEO',
+                  'Management',
+                  'Salesperson',
+                  'Installation Team',
+                ] as const
+              ).map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex justify-end gap-2 sm:col-span-2">
+            <ShellButton type="button" variant="secondary" onClick={() => setEditOpen(false)}>
+              Cancel
+            </ShellButton>
+            <ShellButton type="submit" variant="primary">
+              Save
+            </ShellButton>
+          </div>
+        </form>
+      </Modal>
       <Card padding="md">
         <h2 className="text-sm font-semibold text-foreground">Documents</h2>
         <p className="mt-1 text-xs text-muted-foreground">Store links or paths (e.g. drive URL, scanned file path).</p>
@@ -231,7 +465,8 @@ type AttRow = { status: Attendance['status']; siteId: string; siteIds: string[] 
 export function AttendancePage() {
   const users = useLiveCollection<User>('users');
   const attendance = useLiveCollection<Attendance>('attendance');
-  const sites = useLiveCollection<{ id: string; name: string }>('sites');
+  const sites = useLiveCollection<Site>('sites');
+  const projects = useLiveCollection<Project>('projects');
   const tasks = useLiveCollection<Task>('tasks');
   const employeeExpenses = useLiveCollection<EmployeeExpense>('employeeExpenses');
   const holidays = useLiveCollection<CompanyHoliday>('companyHolidays');
@@ -248,22 +483,32 @@ export function AttendancePage() {
   usePageHeader(attHeader);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<Record<string, AttRow>>({});
+  const [includeCompletedTicketSites, setIncludeCompletedTicketSites] = useState(false);
 
   const readOnly = role === 'Salesperson';
   const isHoliday = holidays.some((h) => h.date === date);
+
+  const eligibleSites = useMemo(
+    () => filterSitesForAttendance(sites, projects, tasks, { includeCompletedWithTickets: includeCompletedTicketSites }),
+    [sites, projects, tasks, includeCompletedTicketSites]
+  );
+
+  const eligibleIdSet = useMemo(() => new Set(eligibleSites.map((s) => s.id)), [eligibleSites]);
 
   useEffect(() => {
     const next: Record<string, AttRow> = {};
     users.forEach((u) => {
       const existing = attendance.find((a) => a.employeeId === u.id && a.date === date);
-      const siteIds =
+      let siteIds =
         existing?.siteIds?.length
           ? [...existing.siteIds]
           : existing?.siteId
             ? [existing.siteId]
-            : sites[0]
-              ? [sites[0].id]
+            : eligibleSites[0]
+              ? [eligibleSites[0].id]
               : [];
+      siteIds = siteIds.filter((id) => eligibleIdSet.has(id));
+      if (siteIds.length === 0 && eligibleSites[0]) siteIds = [eligibleSites[0].id];
       next[u.id] = {
         status: existing?.status ?? 'Absent',
         siteId: siteIds[0] ?? '',
@@ -271,20 +516,25 @@ export function AttendancePage() {
       };
     });
     setRows(next);
-  }, [date, users, attendance, sites]);
+  }, [date, users, attendance, eligibleSites, eligibleIdSet]);
 
   function mark() {
     const markedBy = users[0]?.id ?? 'usr';
     const others = attendance.filter((a) => a.date !== date);
-    const newRows: Attendance[] = Object.entries(rows).map(([employeeId, r]) => ({
-      id: generateId('att'),
-      employeeId,
-      date,
-      status: r.status,
-      siteId: r.status === 'Present' ? r.siteIds[0] ?? r.siteId ?? undefined : undefined,
-      siteIds: r.status === 'Present' && r.siteIds.length ? r.siteIds : undefined,
-      markedBy,
-    }));
+    const allowed = eligibleIdSet;
+    const newRows: Attendance[] = Object.entries(rows).map(([employeeId, r]) => {
+      const siteIds =
+        r.status === 'Present' ? r.siteIds.filter((id) => allowed.has(id)) : [];
+      return {
+        id: generateId('att'),
+        employeeId,
+        date,
+        status: r.status,
+        siteId: r.status === 'Present' ? siteIds[0] ?? undefined : undefined,
+        siteIds: r.status === 'Present' && siteIds.length ? siteIds : undefined,
+        markedBy,
+      };
+    });
     const merged = [...others, ...newRows];
     setCollection('attendance', merged);
     bump();
@@ -312,8 +562,8 @@ export function AttendancePage() {
     return (
       rows[u.id] ?? {
         status: 'Absent' as const,
-        siteId: sites[0]?.id ?? '',
-        siteIds: sites[0] ? [sites[0].id] : [],
+        siteId: eligibleSites[0]?.id ?? '',
+        siteIds: eligibleSites[0] ? [eligibleSites[0].id] : [],
       }
     );
   }
@@ -334,12 +584,12 @@ export function AttendancePage() {
 
   const sitePickers = (u: User) => {
     const state = rowState(u);
-    if (state.status !== 'Present' || sites.length === 0) {
+    if (state.status !== 'Present' || eligibleSites.length === 0) {
       return <span className="text-xs text-muted-foreground">—</span>;
     }
     return (
       <div className="flex max-w-md flex-wrap gap-1.5">
-        {sites.map((s) => {
+        {eligibleSites.map((s) => {
           const on = state.siteIds.includes(s.id);
           return (
             <button
@@ -365,6 +615,15 @@ export function AttendancePage() {
   return (
     <div className="space-y-6">
       <Card padding="md" className="space-y-2">
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+          <input
+            type="checkbox"
+            className="rounded border-input"
+            checked={includeCompletedTicketSites}
+            onChange={(e) => setIncludeCompletedTicketSites(e.target.checked)}
+          />
+          Allow completed-project sites (only where a ticket exists for that project/site)
+        </label>
         <label className="text-sm font-medium text-foreground">
           Date{' '}
           <input type="date" className="input-shell mt-1 max-w-xs" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -373,8 +632,12 @@ export function AttendancePage() {
           <p className="text-sm text-amber-700 dark:text-amber-400">Company holiday — still record if teams work.</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Mark one day at a time for everyone on the list, then use <strong className="text-foreground">Save day</strong>.
+          Sites are limited to <strong className="text-foreground">active projects</strong> unless you enable completed sites with
+          tickets. Mark one day at a time, then <strong className="text-foreground">Save day</strong>.
         </p>
+        {eligibleSites.length === 0 && (
+          <p className="text-sm text-amber-800 dark:text-amber-200">No eligible sites for this date — create tasks on active projects or tickets on completed work.</p>
+        )}
       </Card>
 
       <div className="space-y-3 lg:hidden">
@@ -556,6 +819,7 @@ export function DeploymentPage() {
   const tasks = useLiveCollection<Task>('tasks');
   const users = useLiveCollection<User>('users');
   const projects = useLiveCollection<Project>('projects');
+  const enquiries = useLiveCollection<Enquiry>('enquiries');
   const depHeader = useMemo(
     () => ({
       title: 'Deployment (7-day tasks)',
@@ -569,7 +833,14 @@ export function DeploymentPage() {
   const endD = new Date();
   endD.setDate(endD.getDate() + 7);
   const windowEnd = endD.toISOString().slice(0, 10);
-  const upcoming = tasks.filter((t) => t.dueDate >= today && t.dueDate <= windowEnd);
+  const upcoming = tasks.filter((t) => {
+    if (t.dueDate < today || t.dueDate > windowEnd) return false;
+    const proj = projects.find((p) => p.id === t.projectId);
+    if (!proj) return true;
+    const isTicket = t.kind === 'Ticket';
+    if (isTicket) return projectIsCompletedClosed(proj.status);
+    return projectIsActivePipeline(proj.status);
+  });
 
   return (
     <div className="space-y-4">
@@ -594,7 +865,11 @@ export function DeploymentPage() {
                 <tr key={t.id} className="border-t border-border">
                   <td className="px-3 py-2">{t.title}</td>
                   <td className="px-3 py-2 text-muted-foreground">{t.dueDate}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{projects.find((p) => p.id === t.projectId)?.name ?? t.projectId}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {t.projectId === TASK_PROJECT_ENQUIRY_PLACEHOLDER && t.enquiryId
+                      ? `Enquiry · ${enquiries.find((e) => e.id === t.enquiryId)?.customerName ?? 'Follow-up'}`
+                      : (projects.find((p) => p.id === t.projectId)?.name ?? t.projectId)}
+                  </td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {t.assignedTo.map((id) => users.find((u) => u.id === id)?.name ?? id).join(', ')}
                   </td>
@@ -721,6 +996,19 @@ export function PayrollPage() {
     });
   }, [users, attendance, prefix, payrollRecs]);
 
+  const payrollTotals = useMemo(() => {
+    return rows.reduce(
+      (acc, r) => {
+        acc.present += r.present;
+        acc.pl += r.pl;
+        acc.absent += r.absent;
+        acc.net += r.net;
+        return acc;
+      },
+      { present: 0, pl: 0, absent: 0, net: 0 }
+    );
+  }, [rows]);
+
   function markPaid(employeeId: string, net: number) {
     const list = getCollection<PayrollRecord>('payrollRecords');
     const row: PayrollRecord = {
@@ -813,6 +1101,18 @@ export function PayrollPage() {
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-border bg-muted/50 font-medium text-foreground">
+            <td className="px-3 py-2 text-muted-foreground">Totals ({rows.length})</td>
+            <td className="px-3 py-2 tabular-nums">{payrollTotals.present}</td>
+            <td className="px-3 py-2 tabular-nums">{payrollTotals.pl}</td>
+            <td className="px-3 py-2 tabular-nums">{payrollTotals.absent}</td>
+            <td className="px-3 py-2 tabular-nums">{formatINRDecimal(payrollTotals.net)}</td>
+            <td colSpan={2} className="px-3 py-2 text-xs font-normal text-muted-foreground">
+              Net column is present days × per-day rate
+            </td>
+          </tr>
+        </tfoot>
       </table>
         </div>
       </Card>
@@ -937,8 +1237,25 @@ export function TaskNew() {
   const [taskType, setTaskType] = useState<NonNullable<Task['taskType']>>('work');
   const [assignees, setAssignees] = useState<string[]>([]);
 
+  const taskProjectChoices = useMemo(
+    () => projects.filter((p) => projectIsActivePipeline(p.status)),
+    [projects]
+  );
+  const ticketProjectChoices = useMemo(
+    () => projects.filter((p) => projectIsCompletedClosed(p.status)),
+    [projects]
+  );
+  const selectableProjects = kind === 'Ticket' ? ticketProjectChoices : taskProjectChoices;
+
   const proj = projects.find((p) => p.id === projectId);
   const projectSites = sites.filter((s) => s.projectId === projectId);
+
+  useEffect(() => {
+    if (!selectableProjects.some((p) => p.id === projectId)) {
+      const next = selectableProjects[0]?.id ?? '';
+      if (next !== projectId) setProjectId(next);
+    }
+  }, [kind, selectableProjects, projectId]);
 
   useEffect(() => {
     if (!progressStepFromUrl || !progressStepNameQ) return;
@@ -958,8 +1275,12 @@ export function TaskNew() {
       show('Project and title required', 'error');
       return;
     }
-    if (kind === 'Ticket' && proj?.status !== 'Completed' && proj?.status !== 'Closed') {
+    if (kind === 'Ticket' && proj && !projectIsCompletedClosed(proj.status)) {
       show('Tickets are for completed or closed projects', 'error');
+      return;
+    }
+    if (kind === 'Task' && proj && !projectIsActivePipeline(proj.status)) {
+      show('Tasks are for active pipeline projects (New, In Progress, or On Hold)', 'error');
       return;
     }
     const list = getCollection<Task>('tasks');
@@ -1000,13 +1321,22 @@ export function TaskNew() {
               setSiteId('');
             }}
           >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.status})
-              </option>
-            ))}
+            {selectableProjects.length === 0 ? (
+              <option value="">No matching projects</option>
+            ) : (
+              selectableProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.status})
+                </option>
+              ))
+            )}
           </select>
         </label>
+        <p className="text-xs text-muted-foreground">
+          {kind === 'Task'
+            ? 'Only active pipeline projects are listed. Use tickets after completion.'
+            : 'Only completed or closed projects are listed for post-completion tickets.'}
+        </p>
         <label className="block text-sm font-medium text-foreground">
           Site (optional)
           <select className="select-shell mt-1 w-full" value={siteId} onChange={(e) => setSiteId(e.target.value)}>
@@ -1089,11 +1419,16 @@ const TASK_STATUS_FILTERS = ['Pending', 'In Progress', 'Overdue', 'Completed'] a
 
 export function TasksList() {
   const tasks = useLiveCollection<Task>('tasks');
-  const projects = useLiveCollection<{ id: string; name: string }>('projects');
+  const projects = useLiveCollection<Project>('projects');
+  const enquiries = useLiveCollection<Enquiry>('enquiries');
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [projectFilter, setProjectFilter] = useState<string>('');
+  const [kindFilter, setKindFilter] = useState<'all' | 'Task' | 'Ticket'>('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(TABLE_DEFAULT_PAGE_SIZE);
 
   const tasksHeader = useMemo(
     () => ({
@@ -1104,8 +1439,81 @@ export function TasksList() {
           New task
         </ShellButton>
       ),
+      filtersToolbar: (
+        <div className="flex flex-col gap-3 pb-3 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between lg:gap-x-4 lg:gap-y-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2">
+            <div className="flex min-w-[12rem] flex-1 flex-col gap-1">
+              <input
+                className="input-shell h-10 w-full"
+                placeholder="Title or description…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search tasks"
+              />
+            </div>
+            <label className="flex min-w-[10rem] flex-col gap-1">
+              <span className="sr-only">Status</span>
+              <select
+                className="select-shell h-10 w-full"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by status"
+              >
+                <option value="">All</option>
+                {TASK_STATUS_FILTERS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-[12rem] flex-col gap-1">
+              <span className="sr-only">Project</span>
+              <select
+                className="select-shell h-10 w-full"
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                aria-label="Filter by project"
+              >
+                <option value="">All projects</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-[9rem] flex-col gap-1">
+              <span className="sr-only">Kind</span>
+              <select
+                className="select-shell h-10 w-full"
+                value={kindFilter}
+                onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)}
+                aria-label="Filter by kind"
+              >
+                <option value="all">All</option>
+                <option value="Task">Tasks only</option>
+                <option value="Ticket">Tickets only</option>
+              </select>
+            </label>
+            <label className="flex min-w-[11rem] flex-col gap-1">
+              <span className="sr-only">Lifecycle</span>
+              <select
+                className="select-shell h-10 w-full"
+                value={lifecycleFilter}
+                onChange={(e) => setLifecycleFilter(e.target.value as typeof lifecycleFilter)}
+                aria-label="Filter by lifecycle"
+              >
+                <option value="all">All</option>
+                <option value="active">Active pipeline</option>
+                <option value="completed">Completed / closed</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      ),
     }),
-    [navigate]
+    [navigate, q, statusFilter, projectFilter, kindFilter, lifecycleFilter, projects]
   );
   usePageHeader(tasksHeader);
 
@@ -1115,9 +1523,27 @@ export function TasksList() {
       if (qq && !t.title.toLowerCase().includes(qq) && !(t.description ?? '').toLowerCase().includes(qq)) return false;
       if (projectFilter && t.projectId !== projectFilter) return false;
       if (statusFilter && taskEffectiveStatus(t) !== statusFilter) return false;
+      const isTicket = t.kind === 'Ticket';
+      if (kindFilter === 'Task' && isTicket) return false;
+      if (kindFilter === 'Ticket' && !isTicket) return false;
+      const pr =
+        t.projectId === TASK_PROJECT_ENQUIRY_PLACEHOLDER ? undefined : projects.find((p) => p.id === t.projectId);
+      if (lifecycleFilter === 'active' && pr && !projectIsActivePipeline(pr.status)) return false;
+      if (lifecycleFilter === 'completed' && pr && !projectIsCompletedClosed(pr.status)) return false;
+      if (lifecycleFilter !== 'all' && !pr && t.projectId !== TASK_PROJECT_ENQUIRY_PLACEHOLDER) return false;
       return true;
     });
-  }, [tasks, q, projectFilter, statusFilter]);
+  }, [tasks, q, projectFilter, statusFilter, kindFilter, lifecycleFilter, projects]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filtered.length, pageSize, q, projectFilter, statusFilter, kindFilter, lifecycleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pagedTasks = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return filtered.slice(s, s + pageSize);
+  }, [filtered, page, pageSize]);
 
   function statusBadgeClass(eff: string) {
     if (eff === 'Completed') return 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200';
@@ -1128,49 +1554,7 @@ export function TasksList() {
 
   return (
     <div className="space-y-4">
-      <Card padding="md" className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-        <label className="block min-w-[12rem] flex-1 text-sm font-medium text-foreground">
-          Search
-          <input
-            className="input-shell mt-1 w-full"
-            placeholder="Title or description…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </label>
-        <label className="block min-w-[10rem] text-sm font-medium text-foreground">
-          Status
-          <select
-            className="select-shell mt-1 w-full"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All</option>
-            {TASK_STATUS_FILTERS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block min-w-[12rem] text-sm font-medium text-foreground">
-          Project
-          <select
-            className="select-shell mt-1 w-full"
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-          >
-            <option value="">All projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </Card>
-
-      <DataTableShell>
+      <DataTableShell bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
         <table className={dataTableClasses}>
           <thead>
             <tr>
@@ -1183,9 +1567,12 @@ export function TasksList() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((t) => {
+            {pagedTasks.map((t) => {
               const eff = taskEffectiveStatus(t);
-              const projName = projects.find((p) => p.id === t.projectId)?.name ?? '—';
+              const projName =
+                t.projectId === TASK_PROJECT_ENQUIRY_PLACEHOLDER && t.enquiryId
+                  ? `Enquiry · ${enquiries.find((e) => e.id === t.enquiryId)?.customerName ?? 'Follow-up'}`
+                  : (projects.find((p) => p.id === t.projectId)?.name ?? '—');
               return (
                 <tr key={t.id}>
                   <td>
@@ -1222,6 +1609,18 @@ export function TasksList() {
           </tbody>
         </table>
       </DataTableShell>
+      {filtered.length > 0 && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <TablePaginationBar
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalCount={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      )}
       {filtered.length === 0 && (
         <p className="text-center text-sm text-muted-foreground">No tasks match your filters.</p>
       )}
@@ -1234,6 +1633,7 @@ export function TaskDetail() {
   const navigate = useNavigate();
   const tasks = useLiveCollection<Task>('tasks');
   const users = useLiveCollection<User>('users');
+  const enquiries = useLiveCollection<Enquiry>('enquiries');
   const { bump } = useDataRefresh();
   const { show } = useToast();
   const found = tasks.find((x) => x.id === id);
@@ -1323,6 +1723,14 @@ export function TaskDetail() {
       )}
       <Card padding="md">
         <p className="text-sm text-muted-foreground">{task.description || 'No description.'}</p>
+        {task.enquiryId && (
+          <p className="mt-2 text-sm">
+            <span className="text-muted-foreground">Linked enquiry: </span>
+            <Link to={`/sales/enquiries/${task.enquiryId}`} className="font-medium text-primary hover:underline">
+              {enquiries.find((e) => e.id === task.enquiryId)?.customerName ?? task.enquiryId}
+            </Link>
+          </p>
+        )}
         {task.progressStep != null && (
           <p className="mt-2 text-sm font-medium text-foreground">
             Linked timeline step: <span className="text-primary">Step {task.progressStep}</span>

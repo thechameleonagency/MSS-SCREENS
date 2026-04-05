@@ -6,22 +6,29 @@ import { UnifiedExpenseModal } from '../../components/UnifiedExpenseModal';
 import { UnifiedIncomeModal } from '../../components/UnifiedIncomeModal';
 import { usePageHeader } from '../../contexts/PageHeaderContext';
 import { useLiveCollection } from '../../hooks/useLiveCollection';
+import { computeFinanceSnapshot } from '../../lib/financeMetrics';
 import { formatINRDecimal } from '../../lib/helpers';
-import type { CompanyExpense, IncomeRecord, Invoice, Payment } from '../../types';
+import type { CompanyExpense, IncomeRecord, Invoice, Payment, SaleBill } from '../../types';
 
 export function FinanceHubPage() {
   const invoices = useLiveCollection<Invoice>('invoices');
+  const saleBills = useLiveCollection<SaleBill>('saleBills');
   const payments = useLiveCollection<Payment>('payments');
   const expenses = useLiveCollection<CompanyExpense>('companyExpenses');
   const incomes = useLiveCollection<IncomeRecord>('incomeRecords');
   const [expOpen, setExpOpen] = useState(false);
   const [incOpen, setIncOpen] = useState(false);
 
-  const revenue = useMemo(() => payments.reduce((s, p) => s + p.amount, 0), [payments]);
-  const invOutstanding = useMemo(() => invoices.reduce((s, i) => s + i.balance, 0), [invoices]);
-  const expenseTotal = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
-  const incomeTotal = useMemo(() => incomes.reduce((s, i) => s + Math.max(0, i.amount), 0), [incomes]);
-  const net = revenue + incomeTotal - expenseTotal;
+  const snap = useMemo(
+    () =>
+      computeFinanceSnapshot({
+        invoices,
+        saleBills,
+        companyExpenses: expenses,
+        incomeRecords: incomes,
+      }),
+    [invoices, saleBills, expenses, incomes]
+  );
 
   const months = useMemo(() => {
     const out: { key: string; label: string; rev: number; exp: number }[] = [];
@@ -43,6 +50,11 @@ export function FinanceHubPage() {
     subtitle: 'KPIs, trends, and unified expense / income entry',
     actions: (
       <div className="flex flex-wrap gap-2">
+        <Link to="/finance/transactions">
+          <ShellButton type="button" variant="secondary">
+            Transactions
+          </ShellButton>
+        </Link>
         <ShellButton type="button" variant="secondary" onClick={() => setExpOpen(true)}>
           Add expense
         </ShellButton>
@@ -59,20 +71,22 @@ export function FinanceHubPage() {
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card variant="feature" padding="lg">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Revenue (payments)</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(revenue)}</p>
+          <p className="text-xs font-medium uppercase text-muted-foreground">Total revenue</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Invoices + sale bills received + income lines</p>
+          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(snap.totalRevenue)}</p>
         </Card>
         <Card variant="feature" padding="lg">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Outstanding invoices</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(invOutstanding)}</p>
+          <p className="text-xs font-medium uppercase text-muted-foreground">Total expenses</p>
+          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(snap.totalExpenses)}</p>
         </Card>
         <Card variant="feature" padding="lg">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Expenses (recorded)</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(expenseTotal)}</p>
+          <p className="text-xs font-medium uppercase text-muted-foreground">Outstanding (receivables)</p>
+          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(snap.outstandingReceivables)}</p>
         </Card>
         <Card variant="feature" padding="lg">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Net (prototype)</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(net)}</p>
+          <p className="text-xs font-medium uppercase text-muted-foreground">Net profit</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Revenue − expenses (prototype)</p>
+          <p className="mt-2 text-3xl font-semibold text-foreground">{formatINRDecimal(snap.netProfit)}</p>
         </Card>
       </div>
 
@@ -103,6 +117,9 @@ export function FinanceHubPage() {
       <Card variant="feature" padding="lg">
         <h2 className="mb-3 text-base font-semibold text-foreground">Modules</h2>
         <div className="flex flex-wrap gap-2 text-sm">
+          <Link className="rounded-md border border-border bg-card px-3 py-2 font-medium text-primary hover:bg-accent" to="/finance/transactions">
+            Transactions
+          </Link>
           <Link className="rounded-md border border-border bg-card px-3 py-2 font-medium text-primary hover:bg-accent" to="/finance/billing">
             Billing & payments
           </Link>

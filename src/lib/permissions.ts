@@ -5,8 +5,9 @@ const hrPrefixes = ['/hr'];
 const settingsPrefixes = ['/settings'];
 
 export function canAccessPath(role: UserRole, path: string): boolean {
-  if (role === 'Super Admin' || role === 'Admin' || role === 'Management') return true;
+  if (role === 'Super Admin' || role === 'Admin' || role === 'CEO' || role === 'Management') return true;
   if (role === 'Salesperson') {
+    if (path.startsWith('/finance/customers')) return true;
     if (financePrefixes.some((p) => path.startsWith(p))) return false;
     if (hrPrefixes.some((p) => path.startsWith(p))) return false;
     if (settingsPrefixes.some((p) => path.startsWith(p))) return false;
@@ -15,6 +16,7 @@ export function canAccessPath(role: UserRole, path: string): boolean {
       path.startsWith('/dashboard') ||
       path.startsWith('/sales') ||
       path.startsWith('/projects') ||
+      path.startsWith('/hr/tasks') ||
       path.startsWith('/analytics') ||
       path.startsWith('/utilities') ||
       path === '/'
@@ -27,7 +29,6 @@ export function canAccessPath(role: UserRole, path: string): boolean {
       path === '/hr' ||
       path === '/hr/attendance' ||
       path.startsWith('/hr/tasks') ||
-      path === '/hr/desk' ||
       path.startsWith('/utilities') ||
       path === '/'
     );
@@ -36,9 +37,9 @@ export function canAccessPath(role: UserRole, path: string): boolean {
 }
 
 export function canDeleteUsers(role: UserRole): boolean {
-  return role === 'Super Admin' || role === 'Admin';
+  return role === 'Super Admin' || role === 'Admin' || role === 'CEO';
 }
 
 export function canEditSettings(role: UserRole): boolean {
-  return role === 'Super Admin' || role === 'Admin';
+  return role === 'Super Admin' || role === 'Admin' || role === 'CEO';
 }
