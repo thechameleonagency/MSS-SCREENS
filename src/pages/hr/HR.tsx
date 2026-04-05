@@ -196,7 +196,7 @@ export function EmployeesList() {
             </tbody>
             {filteredUsers.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-border bg-muted/40 font-medium text-foreground">
+                <tr className="font-medium text-foreground">
                   <td colSpan={3} className="py-2 text-muted-foreground">
                     Totals ({filteredUsers.length} employees)
                   </td>

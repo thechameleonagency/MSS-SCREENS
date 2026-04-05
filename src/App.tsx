@@ -4,7 +4,13 @@ import { Dashboard } from './pages/Dashboard';
 import { AgentDetail, AgentsList } from './pages/sales/Agents';
 import { CustomerDetail, CustomersList } from './pages/sales/Customers';
 import { EnquiryDetail, EnquiryList } from './pages/sales/Enquiries';
-import { QuotationDetail, QuotationNew, QuotationPreview, QuotationsList } from './pages/sales/Quotations';
+import {
+  QuotationDetail,
+  QuotationEdit,
+  QuotationNew,
+  QuotationPreview,
+  QuotationsList,
+} from './pages/sales/Quotations';
 import { ActiveSitesPage } from './pages/operations/ActiveSitesPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import {
@@ -88,8 +94,9 @@ export default function App() {
         <Route path="sales/agents/:id" element={<AgentDetail />} />
         <Route path="sales/quotations" element={<QuotationsList />} />
         <Route path="sales/quotations/new" element={<QuotationNew />} />
-        <Route path="sales/quotations/:id" element={<QuotationDetail />} />
+        <Route path="sales/quotations/:id/edit" element={<QuotationEdit />} />
         <Route path="sales/quotations/:id/preview" element={<QuotationPreview />} />
+        <Route path="sales/quotations/:id" element={<QuotationDetail />} />
         <Route path="sales/customers" element={<Navigate to="/finance/customers" replace />} />
         <Route path="sales/customers/:id" element={<LegacySalesCustomerRedirect />} />
 

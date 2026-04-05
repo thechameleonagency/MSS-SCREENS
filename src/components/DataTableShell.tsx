@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { cn } from '../lib/utils';
 
-/** Apply to `<table>`: sticky header row, zebra body, comfortable row height. */
+/** Apply to `<table>`: sticky header row, zebra body, comfortable row height; sticky tfoot at bottom of scrollport. */
 export const dataTableClasses =
-  'min-w-full text-left text-sm [&_thead_tr]:border-b [&_thead_tr]:border-border [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-[1] [&_thead_th]:bg-card [&_thead_th]:px-4 [&_thead_th]:py-3.5 [&_thead_th]:font-semibold [&_thead_th]:text-muted-foreground [&_tbody_tr]:border-b [&_tbody_tr]:border-border/50 [&_tbody_tr:nth-child(even)]:bg-muted/30 [&_tbody_td]:px-4 [&_tbody_td]:py-3.5';
+  'min-w-full text-left text-sm [&_thead_tr]:border-b [&_thead_tr]:border-border [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-[2] [&_thead_th]:bg-card [&_thead_th]:px-4 [&_thead_th]:py-3.5 [&_thead_th]:font-semibold [&_thead_th]:text-muted-foreground [&_tbody_tr]:border-b [&_tbody_tr]:border-border/50 [&_tbody_tr:nth-child(even)]:bg-muted/30 [&_tbody_td]:px-4 [&_tbody_td]:py-3.5 [&_tfoot_tr]:border-t-2 [&_tfoot_tr]:border-border [&_tfoot_td]:sticky [&_tfoot_td]:bottom-0 [&_tfoot_td]:z-[1] [&_tfoot_td]:bg-muted/40 [&_tfoot_td]:px-4 [&_tfoot_td]:py-3.5 [&_tfoot_th]:sticky [&_tfoot_th]:bottom-0 [&_tfoot_th]:z-[1] [&_tfoot_th]:bg-muted/40 [&_tfoot_th]:px-4 [&_tfoot_th]:py-3.5';
 
 /** Default vertical cap for list tables (`bodyMaxHeight` on `DataTableShell`). */
 export const DATA_TABLE_LIST_BODY_MAX_HEIGHT = 'min(70vh, 28rem)';

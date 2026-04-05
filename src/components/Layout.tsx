@@ -202,9 +202,9 @@ function PageHeaderBar() {
 
   return (
     <header className="space-y-0">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3">
+      <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <nav
-          className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:text-sm"
+          className="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-x-2 gap-y-1 text-xs text-muted-foreground sm:text-sm"
           aria-label="Breadcrumb"
         >
           {breadcrumbs.map((b, i) => (
@@ -231,7 +231,7 @@ function PageHeaderBar() {
           ))}
         </nav>
         {actions ? (
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-center gap-2">{actions}</div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>
         ) : null}
       </div>
       <h1 className="sr-only">{title}</h1>

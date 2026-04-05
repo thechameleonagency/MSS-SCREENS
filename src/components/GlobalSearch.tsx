@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { IconSearch } from './icons';
 import { useLiveCollection } from '../hooks/useLiveCollection';
 import type {
   Customer,
@@ -116,13 +117,15 @@ export function GlobalSearch() {
 
   return (
     <div className="relative hidden w-full min-w-0 flex-1 sm:block">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">⌕</span>
+      <span className="pointer-events-none absolute left-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-muted-foreground">
+        <IconSearch size={22} className="shrink-0" aria-hidden />
+      </span>
       <input
         type="search"
         placeholder="Search projects, customers, invoices…"
         aria-label="Global search"
         aria-expanded={open}
-        className="h-10 w-full max-w-none rounded-full border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="h-10 w-full max-w-none rounded-full border border-input bg-background py-2 pl-10 pr-3 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);

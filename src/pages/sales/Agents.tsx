@@ -240,76 +240,74 @@ export function AgentsList() {
     <div className="space-y-4">
       <Card padding="none" className="overflow-hidden">
         <DataTableShell bare bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
-          <div className="overflow-x-auto">
-            <table className={dataTableClasses}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Mobile</th>
-                  <th>WhatsApp</th>
-                  <th>Email</th>
-                  <th>Rate</th>
-                  <th>Commission</th>
-                  <th className="w-20" />
-                </tr>
-              </thead>
-              <tbody>
-                {pagedAgents.map((a) => (
-                  <tr key={a.id} className="border-t border-border transition hover:bg-muted/50">
-                    <td className="font-medium text-foreground">{a.fullName}</td>
-                    <td className="text-muted-foreground">
-                      {a.isProfitSharePartner ? (
-                        <span className="rounded bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Partner</span>
-                      ) : (
-                        <span className="text-xs">Agent</span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap text-muted-foreground">{a.mobile}</td>
-                    <td className="whitespace-nowrap text-muted-foreground">{a.whatsappNumber || a.mobile || '—'}</td>
-                    <td className="max-w-[10rem] truncate text-muted-foreground">{a.email || '—'}</td>
-                    <td className="whitespace-nowrap text-muted-foreground">
-                      {a.isProfitSharePartner ? (
-                        a.rate > 0 ? (
-                          <span>
-                            ₹{a.rate.toLocaleString('en-IN')} {a.rateType === 'Per kW' ? '/kW' : 'flat'}
-                            <span className="mt-0.5 block text-[10px] text-muted-foreground">Optional lead referral</span>
-                          </span>
-                        ) : (
-                          <span>Profit share (per project)</span>
-                        )
-                      ) : (
-                        <>
+          <table className={dataTableClasses}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Mobile</th>
+                <th>WhatsApp</th>
+                <th>Email</th>
+                <th>Rate</th>
+                <th>Commission</th>
+                <th className="w-20" />
+              </tr>
+            </thead>
+            <tbody>
+              {pagedAgents.map((a) => (
+                <tr key={a.id} className="border-t border-border transition hover:bg-muted/50">
+                  <td className="font-medium text-foreground">{a.fullName}</td>
+                  <td className="text-muted-foreground">
+                    {a.isProfitSharePartner ? (
+                      <span className="rounded bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">Partner</span>
+                    ) : (
+                      <span className="text-xs">Agent</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap text-muted-foreground">{a.mobile}</td>
+                  <td className="whitespace-nowrap text-muted-foreground">{a.whatsappNumber || a.mobile || '—'}</td>
+                  <td className="max-w-[10rem] truncate text-muted-foreground">{a.email || '—'}</td>
+                  <td className="whitespace-nowrap text-muted-foreground">
+                    {a.isProfitSharePartner ? (
+                      a.rate > 0 ? (
+                        <span>
                           ₹{a.rate.toLocaleString('en-IN')} {a.rateType === 'Per kW' ? '/kW' : 'flat'}
-                        </>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap text-muted-foreground">
-                      ₹{a.paidCommission.toLocaleString('en-IN')} / ₹{a.totalCommission.toLocaleString('en-IN')}
-                    </td>
-                    <td>
-                      <Link className="font-medium text-primary hover:text-primary/90" to={`/sales/agents/${a.id}`}>
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {filteredAgents.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 border-border bg-muted/40 font-medium text-foreground">
-                    <td colSpan={6} className="py-2 text-muted-foreground">
-                      Totals ({filteredAgents.length} agent{filteredAgents.length === 1 ? '' : 's'})
-                    </td>
-                    <td className="py-2 tabular-nums text-muted-foreground">
-                      ₹{listTotals.paid.toLocaleString('en-IN')} / ₹{listTotals.booked.toLocaleString('en-IN')}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
+                          <span className="mt-0.5 block text-[10px] text-muted-foreground">Optional lead referral</span>
+                        </span>
+                      ) : (
+                        <span>Profit share (per project)</span>
+                      )
+                    ) : (
+                      <>
+                        ₹{a.rate.toLocaleString('en-IN')} {a.rateType === 'Per kW' ? '/kW' : 'flat'}
+                      </>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap text-muted-foreground">
+                    ₹{a.paidCommission.toLocaleString('en-IN')} / ₹{a.totalCommission.toLocaleString('en-IN')}
+                  </td>
+                  <td>
+                    <Link className="font-medium text-primary hover:text-primary/90" to={`/sales/agents/${a.id}`}>
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {filteredAgents.length > 0 && (
+              <tfoot>
+                <tr className="font-medium text-foreground">
+                  <td colSpan={6} className="py-2 text-muted-foreground">
+                    Totals ({filteredAgents.length} agent{filteredAgents.length === 1 ? '' : 's'})
+                  </td>
+                  <td className="py-2 tabular-nums text-muted-foreground">
+                    ₹{listTotals.paid.toLocaleString('en-IN')} / ₹{listTotals.booked.toLocaleString('en-IN')}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
+          </table>
         </DataTableShell>
       </Card>
       {filteredAgents.length > 0 && (
@@ -1232,7 +1230,7 @@ export function AgentDetail() {
               </tbody>
               {projs.length > 0 && (
                 <tfoot>
-                  <tr className="border-t-2 border-border bg-muted/40 font-medium text-foreground">
+                  <tr className="font-medium text-foreground">
                     <td colSpan={2} className="py-2 text-muted-foreground">
                       Totals ({projs.length} project{projs.length === 1 ? '' : 's'})
                     </td>
@@ -1304,7 +1302,7 @@ export function AgentDetail() {
               </tbody>
               {projs.length > 0 && (
                 <tfoot>
-                  <tr className="border-t-2 border-border bg-muted/40 font-medium text-foreground">
+                  <tr className="font-medium text-foreground">
                     <td className="py-2 text-muted-foreground">Totals ({projs.length} projects)</td>
                     <td className="py-2 tabular-nums">{referralTableTotals.capKw}</td>
                     <td className="py-2 tabular-nums">₹{referralTableTotals.contract.toLocaleString('en-IN')}</td>
