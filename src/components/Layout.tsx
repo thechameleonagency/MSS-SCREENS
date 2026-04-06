@@ -166,6 +166,34 @@ const nav: {
   },
 ];
 
+const NAV_SECTIONS_STORAGE_KEY = 'mms-nav-sections';
+
+/** Collapsible groups: only Sales + Projects expanded by default; rest false. */
+function defaultNavOpenState(): Record<string, boolean> {
+  const o: Record<string, boolean> = {};
+  for (const g of nav) {
+    if (g.children.length > 1) {
+      o[g.label] = g.label === 'Sales' || g.label === 'Projects';
+    }
+  }
+  return o;
+}
+
+function loadNavOpenMerged(): Record<string, boolean> {
+  const base = defaultNavOpenState();
+  try {
+    const raw = localStorage.getItem(NAV_SECTIONS_STORAGE_KEY);
+    if (!raw) return base;
+    const saved = JSON.parse(raw) as Record<string, unknown>;
+    for (const k of Object.keys(base)) {
+      if (typeof saved[k] === 'boolean') base[k] = saved[k] as boolean;
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return base;
+}
+
 function QuickAddMenu({ role, onClose }: { role: UserRole; onClose: () => void }) {
   const links: { to: string; label: string }[] = [];
   if (canAccessPath(role, '/sales/quotations/new')) links.push({ to: '/sales/quotations/new', label: 'New quotation' });
@@ -264,11 +292,7 @@ function LayoutShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [pinTick, setPinTick] = useState(0);
-  const [navOpen, setNavOpen] = useState<Record<string, boolean>>({
-    Sales: true,
-    Projects: true,
-    Team: true,
-  });
+  const [navOpen, setNavOpen] = useState<Record<string, boolean>>(loadNavOpenMerged);
   const quickAddRef = useRef<HTMLDivElement>(null);
   const { role, setRole } = useRole();
   const { version: dataVersion } = useDataRefresh();
@@ -336,6 +360,14 @@ function LayoutShell() {
       return next;
     });
   }, [loc.pathname, loc.search, filteredNav]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NAV_SECTIONS_STORAGE_KEY, JSON.stringify(navOpen));
+    } catch {
+      /* quota / private mode */
+    }
+  }, [navOpen]);
 
   if (!canAccessPath(role, loc.pathname)) {
     return (
@@ -534,12 +566,7 @@ function LayoutShell() {
               return null;
             }
 
-            const expanded =
-              navOpen[group.label] !== undefined
-                ? navOpen[group.label]!
-                : group.label === 'Sales' || group.label === 'Projects'
-                  ? true
-                  : hasActive;
+            const expanded = navOpen[group.label] ?? hasActive;
 
             return (
               <div key={group.label} className="mb-2">
@@ -548,8 +575,7 @@ function LayoutShell() {
                   className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-hover"
                   onClick={() =>
                     setNavOpen((s) => {
-                      const prev =
-                        s[group.label] !== undefined ? s[group.label]! : groupContainsActive(group.children, loc.pathname, loc.search);
+                      const prev = s[group.label] ?? false;
                       return { ...s, [group.label]: !prev };
                     })
                   }

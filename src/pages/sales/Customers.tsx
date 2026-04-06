@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { DataTableShell, DATA_TABLE_LIST_BODY_MAX_HEIGHT, dataTableClasses } from '../../components/DataTableShell';
+import { DataTableShell, dataTableClasses, listTableBodyMaxHeight } from '../../components/DataTableShell';
+import {
+  ListPageFiltersLayout,
+  listPageStatChipButtonClass,
+  listPageStatChipInner,
+  listPageStatChipLabel,
+} from '../../components/ListPageFiltersLayout';
 import { TablePaginationBar, TABLE_DEFAULT_PAGE_SIZE } from '../../components/TablePaginationBar';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
@@ -17,6 +23,8 @@ export function CustomersList() {
   const customers = useLiveCollection<Customer>('customers');
   const invoices = useLiveCollection<Invoice>('invoices');
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [chipFilter, setChipFilter] = useState<'all' | 'company' | 'individual' | 'pending'>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(TABLE_DEFAULT_PAGE_SIZE);
   const { bump } = useDataRefresh();
@@ -32,20 +40,6 @@ export function CustomersList() {
     pan: '',
     state: '',
   });
-
-  const pageHeader = useMemo(
-    () => ({
-      title: 'Customers',
-      subtitle: 'Accounts, invoices, sale bills, and projects',
-      actions: (
-        <ShellButton variant="primary" type="button" onClick={() => setOpen(true)}>
-          Add customer
-        </ShellButton>
-      ),
-    }),
-    []
-  );
-  usePageHeader(pageHeader);
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -83,24 +77,117 @@ export function CustomersList() {
     };
   }, [customers, invoices]);
 
+  const pageHeader = useMemo(
+    () => ({
+      title: 'Customers',
+      subtitle: 'Accounts, invoices, sale bills, and projects',
+      actions: (
+        <ShellButton variant="primary" type="button" onClick={() => setOpen(true)}>
+          Add customer
+        </ShellButton>
+      ),
+      filtersToolbar: (
+        <ListPageFiltersLayout
+          primary={
+            <input
+              className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
+              placeholder="Name, phone, or email…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Search customers"
+            />
+          }
+          secondary={
+            <>
+              <button
+                type="button"
+                className={listPageStatChipButtonClass()}
+                aria-pressed={chipFilter === 'all'}
+                onClick={() => setChipFilter('all')}
+              >
+                <span className={listPageStatChipInner(chipFilter === 'all')}>
+                  <span className={listPageStatChipLabel(chipFilter === 'all')}>Total</span>
+                  <span className="tabular-nums text-foreground">{summary.total}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={listPageStatChipButtonClass()}
+                aria-pressed={chipFilter === 'company'}
+                onClick={() => setChipFilter('company')}
+              >
+                <span className={listPageStatChipInner(chipFilter === 'company')}>
+                  <span className={listPageStatChipLabel(chipFilter === 'company')}>Companies</span>
+                  <span className="tabular-nums text-foreground">{summary.companies}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={listPageStatChipButtonClass()}
+                aria-pressed={chipFilter === 'individual'}
+                onClick={() => setChipFilter('individual')}
+              >
+                <span className={listPageStatChipInner(chipFilter === 'individual')}>
+                  <span className={listPageStatChipLabel(chipFilter === 'individual')}>Individuals</span>
+                  <span className="tabular-nums text-foreground">{summary.individuals}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={listPageStatChipButtonClass()}
+                aria-pressed={chipFilter === 'pending'}
+                onClick={() => setChipFilter('pending')}
+              >
+                <span className={listPageStatChipInner(chipFilter === 'pending')}>
+                  <span className={listPageStatChipLabel(chipFilter === 'pending')}>Pending dues</span>
+                  <span className="tabular-nums text-foreground">{summary.withPending}</span>
+                </span>
+              </button>
+            </>
+          }
+        />
+      ),
+    }),
+    [q, chipFilter, summary]
+  );
+  usePageHeader(pageHeader);
+
   const sortedCustomers = useMemo(
     () => [...customers].sort((a, b) => a.name.localeCompare(b.name)),
     [customers]
   );
 
+  const visibleCustomers = useMemo(() => {
+    const qq = q.trim().toLowerCase();
+    const digits = q.replace(/\D/g, '');
+    return sortedCustomers.filter((c) => {
+      const matchQ =
+        !qq ||
+        c.name.toLowerCase().includes(qq) ||
+        (c.phone && (c.phone.includes(qq) || (digits.length >= 3 && c.phone.replace(/\D/g, '').includes(digits)))) ||
+        (c.email ?? '').toLowerCase().includes(qq);
+      const matchChip =
+        chipFilter === 'all' ||
+        (chipFilter === 'company' && c.type === 'Company') ||
+        (chipFilter === 'individual' && c.type === 'Individual') ||
+        (chipFilter === 'pending' && pendingByCustomer(c.id) > 0);
+      return matchQ && matchChip;
+    });
+  }, [sortedCustomers, q, chipFilter, invoices]);
+
   useEffect(() => {
     setPage(1);
-  }, [sortedCustomers.length, pageSize]);
+  }, [visibleCustomers.length, pageSize, q, chipFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedCustomers.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(visibleCustomers.length / pageSize));
   const pagedCustomers = useMemo(() => {
     const s = (page - 1) * pageSize;
-    return sortedCustomers.slice(s, s + pageSize);
-  }, [sortedCustomers, page, pageSize]);
+    return visibleCustomers.slice(s, s + pageSize);
+  }, [visibleCustomers, page, pageSize]);
 
   const pendingGrand = useMemo(
-    () => sortedCustomers.reduce((acc, c) => acc + pendingByCustomer(c.id), 0),
-    [sortedCustomers, invoices]
+    () => visibleCustomers.reduce((acc, c) => acc + pendingByCustomer(c.id), 0),
+    [visibleCustomers, invoices]
   );
 
   return (
@@ -115,7 +202,7 @@ export function CustomersList() {
         ]}
       />
       <Card padding="none" className="overflow-hidden">
-        <DataTableShell bare bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
+        <DataTableShell bare bodyMaxHeight={listTableBodyMaxHeight(pageSize)}>
           <table className={dataTableClasses}>
             <thead>
               <tr>
@@ -141,11 +228,11 @@ export function CustomersList() {
                 </tr>
               ))}
             </tbody>
-            {sortedCustomers.length > 0 && (
+            {visibleCustomers.length > 0 && (
               <tfoot>
                 <tr className="font-medium text-foreground">
                   <td colSpan={3} className="py-2 text-muted-foreground">
-                    Totals ({sortedCustomers.length} customers)
+                    Totals ({visibleCustomers.length} customers)
                   </td>
                   <td className="py-2 tabular-nums">{formatINR(pendingGrand)}</td>
                   <td />
@@ -155,13 +242,13 @@ export function CustomersList() {
           </table>
         </DataTableShell>
       </Card>
-      {sortedCustomers.length > 0 && (
+      {visibleCustomers.length > 0 && (
         <div className="rounded-lg border border-border bg-card px-4 py-3">
           <TablePaginationBar
             page={page}
             totalPages={totalPages}
             pageSize={pageSize}
-            totalCount={sortedCustomers.length}
+            totalCount={visibleCustomers.length}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
           />

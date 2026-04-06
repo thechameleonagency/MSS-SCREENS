@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { DataTableShell, DATA_TABLE_LIST_BODY_MAX_HEIGHT, dataTableClasses } from '../../components/DataTableShell';
+import { DataTableShell, dataTableClasses, listTableBodyMaxHeight } from '../../components/DataTableShell';
+import {
+  ListPageFiltersLayout,
+  listPageStatChipButtonClass,
+  listPageStatChipInner,
+  listPageStatChipLabel,
+} from '../../components/ListPageFiltersLayout';
 import { TablePaginationBar, TABLE_DEFAULT_PAGE_SIZE } from '../../components/TablePaginationBar';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
@@ -356,132 +362,116 @@ export function EnquiryList() {
     show('Enquiry created', 'success');
   }
 
-  const statChipBtn = () =>
-    cn(
-      'rounded-none border-0 bg-transparent p-0 shadow-none text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-    );
-
-  const statChipInner = (active: boolean) =>
-    cn(
-      'inline-flex flex-col items-start border-b-2 pb-0.5',
-      active
-        ? 'border-foreground font-medium text-foreground'
-        : 'border-transparent text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground'
-    );
-
-  const statChipLabel = (active: boolean) =>
-    cn('text-[10px] font-normal uppercase tracking-wide', active ? 'text-foreground' : 'text-muted-foreground');
-
   const filtersToolbar = useMemo(() => {
     const chipsActive = chipStatuses.size > 0 || chipHighOnly;
     return (
-      <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-4 sm:gap-y-3">
-        <div className="flex min-w-0 flex-wrap items-end gap-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <input
-              className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
-              placeholder="Name, phone, or pipeline stage…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label="Search by customer name, phone, or pipeline stage"
-            />
-          </div>
-          <label className="flex flex-col gap-1">
-            <span className="sr-only">Status</span>
-            <select
-              className="select-shell h-10 shrink-0 grow-0"
-              style={{ width: ENQ_STATUS_SELECT_W }}
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
+      <ListPageFiltersLayout
+        primary={
+          <>
+            <div className="flex min-w-0 flex-col gap-1">
+              <input
+                className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
+                placeholder="Name, phone, or pipeline stage…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search by customer name, phone, or pipeline stage"
+              />
+            </div>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Status</span>
+              <select
+                className="select-shell h-10 shrink-0 grow-0"
+                style={{ width: ENQ_STATUS_SELECT_W }}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All status</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Priority</span>
+              <select
+                className="select-shell h-10 shrink-0 grow-0"
+                style={{ width: ENQ_PRIORITY_SELECT_W }}
+                value={priorityOnly}
+                onChange={(e) => setPriorityOnly(e.target.value)}
+                aria-label="Filter by priority"
+              >
+                <option value="">All priorities</option>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+        secondary={
+          <>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={!chipsActive}
+              onClick={clearStatChips}
             >
-              <option value="">All status</option>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="sr-only">Priority</span>
-            <select
-              className="select-shell h-10 shrink-0 grow-0"
-              style={{ width: ENQ_PRIORITY_SELECT_W }}
-              value={priorityOnly}
-              onChange={(e) => setPriorityOnly(e.target.value)}
-              aria-label="Filter by priority"
+              <span className={listPageStatChipInner(!chipsActive)}>
+                <span className={listPageStatChipLabel(!chipsActive)}>Total</span>
+                <span className="tabular-nums text-foreground">{summary.total}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={chipStatuses.has('New')}
+              onClick={() => toggleChipStatus('New')}
             >
-              <option value="">All priorities</option>
-              {PRIORITY_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div
-          className="flex flex-wrap items-baseline justify-start gap-x-4 gap-y-2 text-sm sm:justify-end"
-          role="group"
-          aria-label="Quick filters from totals"
-        >
-          <button
-            type="button"
-            className={statChipBtn()}
-            aria-pressed={!chipsActive}
-            onClick={clearStatChips}
-          >
-            <span className={statChipInner(!chipsActive)}>
-              <span className={statChipLabel(!chipsActive)}>Total</span>
-              <span className="tabular-nums text-foreground">{summary.total}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className={statChipBtn()}
-            aria-pressed={chipStatuses.has('New')}
-            onClick={() => toggleChipStatus('New')}
-          >
-            <span className={statChipInner(chipStatuses.has('New'))}>
-              <span className={statChipLabel(chipStatuses.has('New'))}>New</span>
-              <span className="tabular-nums text-foreground">{summary.new}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className={statChipBtn()}
-            aria-pressed={chipStatuses.has('Contacted')}
-            onClick={() => toggleChipStatus('Contacted')}
-          >
-            <span className={statChipInner(chipStatuses.has('Contacted'))}>
-              <span className={statChipLabel(chipStatuses.has('Contacted'))}>Contacted</span>
-              <span className="tabular-nums text-foreground">{summary.contacted}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className={statChipBtn()}
-            aria-pressed={chipStatuses.has('Converted')}
-            onClick={() => toggleChipStatus('Converted')}
-          >
-            <span className={statChipInner(chipStatuses.has('Converted'))}>
-              <span className={statChipLabel(chipStatuses.has('Converted'))}>Converted</span>
-              <span className="tabular-nums text-foreground">{summary.converted}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className={statChipBtn()}
-            aria-pressed={chipHighOnly}
-            onClick={toggleChipHigh}
-          >
-            <span className={statChipInner(chipHighOnly)}>
-              <span className={statChipLabel(chipHighOnly)}>High priority</span>
-              <span className="tabular-nums text-foreground">{summary.high}</span>
-            </span>
-          </button>
-        </div>
-      </div>
+              <span className={listPageStatChipInner(chipStatuses.has('New'))}>
+                <span className={listPageStatChipLabel(chipStatuses.has('New'))}>New</span>
+                <span className="tabular-nums text-foreground">{summary.new}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={chipStatuses.has('Contacted')}
+              onClick={() => toggleChipStatus('Contacted')}
+            >
+              <span className={listPageStatChipInner(chipStatuses.has('Contacted'))}>
+                <span className={listPageStatChipLabel(chipStatuses.has('Contacted'))}>Contacted</span>
+                <span className="tabular-nums text-foreground">{summary.contacted}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={chipStatuses.has('Converted')}
+              onClick={() => toggleChipStatus('Converted')}
+            >
+              <span className={listPageStatChipInner(chipStatuses.has('Converted'))}>
+                <span className={listPageStatChipLabel(chipStatuses.has('Converted'))}>Converted</span>
+                <span className="tabular-nums text-foreground">{summary.converted}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={chipHighOnly}
+              onClick={toggleChipHigh}
+            >
+              <span className={listPageStatChipInner(chipHighOnly)}>
+                <span className={listPageStatChipLabel(chipHighOnly)}>High priority</span>
+                <span className="tabular-nums text-foreground">{summary.high}</span>
+              </span>
+            </button>
+          </>
+        }
+      />
     );
   }, [q, status, priorityOnly, chipStatuses, chipHighOnly, summary]);
 
@@ -499,7 +489,7 @@ export function EnquiryList() {
   return (
     <div className="space-y-4">
       <Card padding="none" className="overflow-hidden">
-        <DataTableShell bare bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
+        <DataTableShell bare bodyMaxHeight={listTableBodyMaxHeight(pageSize)}>
           <table className={dataTableClasses}>
             <thead>
               <tr>

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardHeader } from '../../components/Card';
-import { DataTableShell, dataTableClasses } from '../../components/DataTableShell';
+import { DataTableShell, dataTableClasses, listTableBodyMaxHeight } from '../../components/DataTableShell';
+import { TablePaginationBar, TABLE_DEFAULT_PAGE_SIZE } from '../../components/TablePaginationBar';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
 import { UnifiedExpenseModal } from '../../components/UnifiedExpenseModal';
@@ -691,10 +692,22 @@ export function InstallLocationsPanel() {
   const sites = useLiveCollection<Site>('sites');
   const projects = useLiveCollection<Project>('projects');
   const [pid, setPid] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(TABLE_DEFAULT_PAGE_SIZE);
 
   const filtered = useMemo(() => {
     return sites.filter((s) => !pid || s.projectId === pid);
   }, [sites, pid]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filtered.length, pageSize, pid]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pagedSites = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return filtered.slice(s, s + pageSize);
+  }, [filtered, page, pageSize]);
 
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
 
@@ -717,7 +730,7 @@ export function InstallLocationsPanel() {
           ))}
         </select>
       </label>
-      <DataTableShell>
+      <DataTableShell bodyMaxHeight={listTableBodyMaxHeight(pageSize)}>
         <table className={dataTableClasses}>
           <thead>
             <tr>
@@ -728,7 +741,7 @@ export function InstallLocationsPanel() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s) => (
+            {pagedSites.map((s) => (
               <tr key={s.id}>
                 <td className="font-medium text-foreground">{s.name}</td>
                 <td className="text-muted-foreground">{projectName(s.projectId)}</td>
@@ -746,6 +759,18 @@ export function InstallLocationsPanel() {
           </tbody>
         </table>
       </DataTableShell>
+      {filtered.length > 0 && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3">
+          <TablePaginationBar
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalCount={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      )}
       {filtered.length === 0 && <p className="text-sm text-muted-foreground">No locations match this filter.</p>}
     </div>
   );

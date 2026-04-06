@@ -21,7 +21,7 @@ import { inferIncomeTaxonomyKey } from './incomeTaxonomy';
 import { mergeMaterialsPack62IfAbsent } from './materialsPack62';
 import { generateId, getCollection, setCollection } from './storage';
 
-const CURRENT_SCHEMA = 7;
+const CURRENT_SCHEMA = 8;
 
 function defaultJobTitleFromRole(role: User['role']): string | undefined {
   switch (role) {
@@ -249,6 +249,17 @@ function migrateUsersForBr(list: User[]): User[] {
   }));
 }
 
+function migrateUsersHrFields(list: User[]): User[] {
+  return list.map((u) => ({
+    ...u,
+    employmentStatus: u.employmentStatus ?? 'Active',
+    alternatePhone: u.alternatePhone ?? '',
+    aadhaarNumber: u.aadhaarNumber ?? '',
+    otherDocuments: Array.isArray(u.otherDocuments) ? u.otherDocuments : [],
+    salaryAdjustments: Array.isArray(u.salaryAdjustments) ? u.salaryAdjustments : [],
+  }));
+}
+
 function migrateApprovalRequestsMeta(list: ApprovalRequest[]): ApprovalRequest[] {
   return list.map((a) => ({
     ...a,
@@ -272,7 +283,7 @@ export function runDataMigrations(): void {
     setCollection('companyExpenses', migrateExpenses(getCollection<CompanyExpense>('companyExpenses')));
     setCollection('incomeRecords', migrateIncomeRecords(getCollection<IncomeRecord>('incomeRecords')));
     setCollection('materials', migrateMaterials(getCollection<Material>('materials')));
-    setCollection('users', migrateUsersForBr(getCollection<User>('users')));
+    setCollection('users', migrateUsersHrFields(migrateUsersForBr(getCollection<User>('users'))));
     setCollection('approvalRequests', migrateApprovalRequestsMeta(getCollection<ApprovalRequest>('approvalRequests')));
   } catch {
     /* ignore corrupt local data */

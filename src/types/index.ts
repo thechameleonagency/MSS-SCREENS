@@ -10,6 +10,24 @@ export type ExpenseTag = 'Direct' | 'Indirect';
 
 export type UserAccountType = 'admin' | 'employee';
 
+export type EmploymentStatus = 'Active' | 'Inactive';
+
+/** Ad-hoc uploads beyond fixed document slots (data URLs or external URLs). */
+export interface UserOtherDocument {
+  id: string;
+  label?: string;
+  dataUrl?: string;
+}
+
+/** Overtime / bonus / deduction lines on the employee salary ledger (prototype). */
+export interface SalaryLedgerAdjustment {
+  id: string;
+  date: string;
+  kind: 'Overtime' | 'Adjustment' | 'Bonus' | 'Deduction';
+  amountInr: number;
+  notes?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -20,9 +38,13 @@ export interface User {
   userType?: UserAccountType;
   expenseTag: ExpenseTag;
   phone: string;
+  /** Secondary contact */
+  alternatePhone?: string;
   email: string;
   address: string;
   dob: string;
+  /** 12-digit identifier; separate from Aadhaar card scan in documents.aadhaar */
+  aadhaarNumber?: string;
   salary: number;
   bankDetails: string;
   documents: {
@@ -31,6 +53,11 @@ export interface User {
     photo: string;
     offerLetter: string;
   };
+  /** Extra file previews (e.g. contracts). */
+  otherDocuments?: UserOtherDocument[];
+  employmentStatus?: EmploymentStatus;
+  /** Salary ledger adjustments shown on employee profile */
+  salaryAdjustments?: SalaryLedgerAdjustment[];
   username: string;
   password: string;
   joiningDate: string;

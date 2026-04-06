@@ -140,6 +140,11 @@ function seedUsers(): User[] {
     userType: u.userType ?? 'admin',
     jobTitle: u.jobTitle,
     expenseTag: defaultExpenseTagForRole(u.role),
+    employmentStatus: u.employmentStatus ?? 'Active',
+    alternatePhone: u.alternatePhone ?? '',
+    aadhaarNumber: u.aadhaarNumber ?? '',
+    otherDocuments: u.otherDocuments ?? [],
+    salaryAdjustments: u.salaryAdjustments ?? [],
     createdAt: now,
     updatedAt: now,
   });
@@ -276,7 +281,13 @@ function seedUsers(): User[] {
 function seedDemoUsersExtra(): User[] {
   const base = (u: Omit<User, 'expenseTag' | 'createdAt' | 'updatedAt'>): User => ({
     ...u,
+    userType: u.userType ?? 'admin',
     expenseTag: defaultExpenseTagForRole(u.role),
+    employmentStatus: u.employmentStatus ?? 'Active',
+    alternatePhone: u.alternatePhone ?? '',
+    aadhaarNumber: u.aadhaarNumber ?? '',
+    otherDocuments: u.otherDocuments ?? [],
+    salaryAdjustments: u.salaryAdjustments ?? [],
     createdAt: now,
     updatedAt: now,
   });

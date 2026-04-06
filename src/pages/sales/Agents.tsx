@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { DataTableShell, DATA_TABLE_LIST_BODY_MAX_HEIGHT, dataTableClasses } from '../../components/DataTableShell';
+import { DataTableShell, dataTableClasses, listTableBodyMaxHeight } from '../../components/DataTableShell';
+import {
+  ListPageFiltersLayout,
+  listPageStatChipButtonClass,
+  listPageStatChipInner,
+  listPageStatChipLabel,
+} from '../../components/ListPageFiltersLayout';
 import { TablePaginationBar, TABLE_DEFAULT_PAGE_SIZE } from '../../components/TablePaginationBar';
 import { Modal } from '../../components/Modal';
 import { ShellButton } from '../../components/ShellButton';
@@ -15,7 +21,6 @@ import {
 } from '../../lib/introAgentEconomics';
 import { partnerPayoutBlockedReason } from '../../lib/projectClientCollection';
 import { generateId, getCollection, setCollection } from '../../lib/storage';
-import { cn } from '../../lib/utils';
 import type {
   Agent,
   AgentIntroProjectEconomics,
@@ -130,67 +135,63 @@ export function AgentsList() {
     return { count: agents.length, totalComm, paid, pending, partners, standard: agents.length - partners };
   }, [agents]);
 
-  const chipBtn = () =>
-    cn(
-      'rounded-none border-0 bg-transparent p-0 shadow-none text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-    );
-  const chipInner = (active: boolean) =>
-    cn(
-      'inline-flex flex-col items-start border-b-2 pb-0.5',
-      active
-        ? 'border-foreground font-medium text-foreground'
-        : 'border-transparent text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground'
-    );
-  const chipLab = (active: boolean) =>
-    cn('text-[10px] font-normal uppercase tracking-wide', active ? 'text-foreground' : 'text-muted-foreground');
-
   const filtersToolbar = useMemo(
     () => (
-      <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-4 sm:gap-y-3">
-        <div className="flex min-w-0 flex-wrap items-end gap-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <input
-              className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
-              placeholder="Name, mobile, email…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label="Search agents"
-            />
-          </div>
-          <label className="flex flex-col gap-1">
-            <span className="sr-only">Rate type</span>
-            <select
-              className="select-shell h-10 shrink-0 grow-0"
-              style={{ width: AGENTS_RATE_FILTER_W }}
-              value={rateFilter}
-              onChange={(e) => setRateFilter((e.target.value || '') as '' | Agent['rateType'])}
-              aria-label="Filter by rate type"
+      <ListPageFiltersLayout
+        primary={
+          <>
+            <div className="flex min-w-0 flex-col gap-1">
+              <input
+                className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
+                placeholder="Name, mobile, email…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search agents"
+              />
+            </div>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Rate type</span>
+              <select
+                className="select-shell h-10 shrink-0 grow-0"
+                style={{ width: AGENTS_RATE_FILTER_W }}
+                value={rateFilter}
+                onChange={(e) => setRateFilter((e.target.value || '') as '' | Agent['rateType'])}
+                aria-label="Filter by rate type"
+              >
+                <option value="">All rate types</option>
+                <option value="Per kW">Per kW</option>
+                <option value="Flat">Flat</option>
+              </select>
+            </label>
+          </>
+        }
+        secondary={
+          <>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={chipKinds.has('sales')}
+              onClick={() => toggleKindChip('sales')}
             >
-              <option value="">All rate types</option>
-              <option value="Per kW">Per kW</option>
-              <option value="Flat">Flat</option>
-            </select>
-          </label>
-        </div>
-        <div
-          className="flex flex-wrap items-baseline gap-x-4 gap-y-2 text-sm sm:justify-end"
-          role="group"
-          aria-label="Filter by agent type"
-        >
-          <button type="button" className={chipBtn()} onClick={() => toggleKindChip('sales')}>
-            <span className={chipInner(chipKinds.has('sales'))}>
-              <span className={chipLab(chipKinds.has('sales'))}>Standard agent</span>
-              <span className="tabular-nums text-foreground">{summary.standard}</span>
-            </span>
-          </button>
-          <button type="button" className={chipBtn()} onClick={() => toggleKindChip('partner')}>
-            <span className={chipInner(chipKinds.has('partner'))}>
-              <span className={chipLab(chipKinds.has('partner'))}>Introducing partner</span>
-              <span className="tabular-nums text-foreground">{summary.partners}</span>
-            </span>
-          </button>
-        </div>
-      </div>
+              <span className={listPageStatChipInner(chipKinds.has('sales'))}>
+                <span className={listPageStatChipLabel(chipKinds.has('sales'))}>Standard agent</span>
+                <span className="tabular-nums text-foreground">{summary.standard}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={chipKinds.has('partner')}
+              onClick={() => toggleKindChip('partner')}
+            >
+              <span className={listPageStatChipInner(chipKinds.has('partner'))}>
+                <span className={listPageStatChipLabel(chipKinds.has('partner'))}>Introducing partner</span>
+                <span className="tabular-nums text-foreground">{summary.partners}</span>
+              </span>
+            </button>
+          </>
+        }
+      />
     ),
     [chipKinds, summary.standard, summary.partners, q, rateFilter]
   );
@@ -239,7 +240,7 @@ export function AgentsList() {
   return (
     <div className="space-y-4">
       <Card padding="none" className="overflow-hidden">
-        <DataTableShell bare bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
+        <DataTableShell bare bodyMaxHeight={listTableBodyMaxHeight(pageSize)}>
           <table className={dataTableClasses}>
             <thead>
               <tr>

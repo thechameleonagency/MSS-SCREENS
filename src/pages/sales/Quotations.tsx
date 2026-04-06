@@ -10,9 +10,14 @@ import { lineItemsTotal, formatINRDecimal, quotationDiscountAmountInr } from '..
 import { exportDomToPdf } from '../../lib/pdfExport';
 import { quotationIntroducerEconomicsLocked } from '../../lib/enquiryProjectLock';
 import { getCollection, getItem, setCollection } from '../../lib/storage';
-import { cn } from '../../lib/utils';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { DataTableShell, DATA_TABLE_LIST_BODY_MAX_HEIGHT, dataTableClasses } from '../../components/DataTableShell';
+import { DataTableShell, dataTableClasses, listTableBodyMaxHeight } from '../../components/DataTableShell';
+import {
+  ListPageFiltersLayout,
+  listPageStatChipButtonClass,
+  listPageStatChipInner,
+  listPageStatChipLabel,
+} from '../../components/ListPageFiltersLayout';
 import { TablePaginationBar, TABLE_DEFAULT_PAGE_SIZE } from '../../components/TablePaginationBar';
 import { QuotationForm } from './QuotationForm';
 import type { Customer, Material, Project, Quotation, QuotationStatus } from '../../types';
@@ -70,23 +75,6 @@ export function QuotationsList() {
 
   const name = (cid: string) => customers.find((c) => c.id === cid)?.name ?? cid;
 
-  const chipBtn = useCallback(
-    () =>
-      cn(
-        'rounded-none border-0 bg-transparent p-0 shadow-none text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-      ),
-    []
-  );
-  const chipInner = (active: boolean) =>
-    cn(
-      'inline-flex flex-col items-start border-b-2 pb-0.5',
-      active
-        ? 'border-foreground font-medium text-foreground'
-        : 'border-transparent text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground'
-    );
-  const chipLab = (active: boolean) =>
-    cn('text-[10px] font-normal uppercase tracking-wide', active ? 'text-foreground' : 'text-muted-foreground');
-
   const toggleChipStatus = useCallback((s: QuotationStatus) => {
     setChipStatuses((prev) => {
       const next = new Set(prev);
@@ -98,71 +86,82 @@ export function QuotationsList() {
 
   const filtersToolbar = useMemo(
     () => (
-      <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-4 sm:gap-y-3">
-        <div className="flex min-w-0 flex-wrap items-end gap-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <input
-              className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
-              placeholder="Reference, customer, or phone…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label="Search quotations"
-            />
-          </div>
-          <label className="flex flex-col gap-1">
-            <span className="sr-only">Status</span>
-            <select
-              className="select-shell h-10 shrink-0 grow-0"
-              style={{ width: QUO_STATUS_SELECT_W }}
-              value={st}
-              onChange={(e) => setSt(e.target.value)}
-              aria-label="Filter by status"
-            >
-              <option value="">All status</option>
-              {(['Draft', 'Sent', 'Approved', 'Rejected', 'Confirmed'] as QuotationStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="flex min-w-0 flex-wrap items-end justify-start gap-2 sm:justify-end sm:gap-3">
-          <button type="button" className={chipBtn()} aria-pressed={chipStatuses.size === 0} onClick={() => setChipStatuses(new Set())}>
-            <span className={chipInner(chipStatuses.size === 0)}>
-              <span className={chipLab(chipStatuses.size === 0)}>Total</span>
-              <span className="tabular-nums text-foreground">{summary.total}</span>
-            </span>
-          </button>
-          {(
-            [
-              ['Draft', summary.draft],
-              ['Sent', summary.sent],
-              ['Approved', summary.approved],
-              ['Rejected', summary.rejected],
-              ['Confirmed', summary.converted],
-            ] as const
-          ).map(([label, count]) => {
-            const stKey = label as QuotationStatus;
-            return (
-              <button
-                key={label}
-                type="button"
-                className={chipBtn()}
-                aria-pressed={chipStatuses.has(stKey)}
-                onClick={() => toggleChipStatus(stKey)}
+      <ListPageFiltersLayout
+        primary={
+          <>
+            <div className="flex min-w-0 flex-col gap-1">
+              <input
+                className="input-shell h-10 w-auto min-w-[12rem] max-w-[20rem] shrink"
+                placeholder="Reference, customer, or phone…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search quotations"
+              />
+            </div>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Status</span>
+              <select
+                className="select-shell h-10 shrink-0 grow-0"
+                style={{ width: QUO_STATUS_SELECT_W }}
+                value={st}
+                onChange={(e) => setSt(e.target.value)}
+                aria-label="Filter by status"
               >
-                <span className={chipInner(chipStatuses.has(stKey))}>
-                  <span className={chipLab(chipStatuses.has(stKey))}>{label === 'Confirmed' ? 'Converted' : label}</span>
-                  <span className="tabular-nums text-foreground">{count}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                <option value="">All status</option>
+                {(['Draft', 'Sent', 'Approved', 'Rejected', 'Confirmed'] as QuotationStatus[]).map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+        secondary={
+          <>
+            <button
+              type="button"
+              className={listPageStatChipButtonClass()}
+              aria-pressed={chipStatuses.size === 0}
+              onClick={() => setChipStatuses(new Set())}
+            >
+              <span className={listPageStatChipInner(chipStatuses.size === 0)}>
+                <span className={listPageStatChipLabel(chipStatuses.size === 0)}>Total</span>
+                <span className="tabular-nums text-foreground">{summary.total}</span>
+              </span>
+            </button>
+            {(
+              [
+                ['Draft', summary.draft],
+                ['Sent', summary.sent],
+                ['Approved', summary.approved],
+                ['Rejected', summary.rejected],
+                ['Confirmed', summary.converted],
+              ] as const
+            ).map(([label, count]) => {
+              const stKey = label as QuotationStatus;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={listPageStatChipButtonClass()}
+                  aria-pressed={chipStatuses.has(stKey)}
+                  onClick={() => toggleChipStatus(stKey)}
+                >
+                  <span className={listPageStatChipInner(chipStatuses.has(stKey))}>
+                    <span className={listPageStatChipLabel(chipStatuses.has(stKey))}>
+                      {label === 'Confirmed' ? 'Converted' : label}
+                    </span>
+                    <span className="tabular-nums text-foreground">{count}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </>
+        }
+      />
     ),
-    [q, st, chipBtn, chipStatuses, summary, toggleChipStatus]
+    [q, st, chipStatuses, summary, toggleChipStatus]
   );
 
   const pageHeader = useMemo(
@@ -203,7 +202,7 @@ export function QuotationsList() {
         />
       ) : (
         <Card padding="none" className="overflow-hidden">
-          <DataTableShell bare bodyMaxHeight={DATA_TABLE_LIST_BODY_MAX_HEIGHT}>
+          <DataTableShell bare bodyMaxHeight={listTableBodyMaxHeight(pageSize)}>
             <table className={dataTableClasses}>
                 <thead>
                   <tr>

@@ -8,6 +8,25 @@ export const dataTableClasses =
 /** Default vertical cap for list tables (`bodyMaxHeight` on `DataTableShell`). */
 export const DATA_TABLE_LIST_BODY_MAX_HEIGHT = 'min(70vh, 28rem)';
 
+/** Target visible data rows (no inner scroll) per rows-per-page setting. */
+const LIST_TABLE_VISIBLE_ROWS: Record<number, number> = {
+  12: 7,
+  24: 13,
+  48: 18,
+  100: 20,
+};
+
+const LIST_TABLE_HEAD_PX = 48;
+const LIST_TABLE_ROW_PX = 52;
+const LIST_TABLE_FOOT_PX = 48;
+
+/** Scrollport height so ~N rows fit without scrolling; caps at 85vh for small screens. */
+export function listTableBodyMaxHeight(pageSize: number): string {
+  const visible = LIST_TABLE_VISIBLE_ROWS[pageSize] ?? 13;
+  const px = LIST_TABLE_HEAD_PX + visible * LIST_TABLE_ROW_PX + LIST_TABLE_FOOT_PX;
+  return `min(85vh, ${px}px)`;
+}
+
 type DataTableShellProps = {
   children: ReactNode;
   className?: string;
@@ -18,11 +37,21 @@ type DataTableShellProps = {
    * (sticky relative to this region). Horizontal scroll remains on the outer wrapper.
    */
   bodyMaxHeight?: string;
+  /**
+   * When true (default with `bodyMaxHeight`), wheel at scroll top/bottom can chain to the page
+   * (`overscroll-behavior-y: auto`). Set false to keep scroll contained in the table body.
+   */
+  scrollChainToParent?: boolean;
 };
 
-export function DataTableShell({ children, className, bare, bodyMaxHeight }: DataTableShellProps) {
+export function DataTableShell({ children, className, bare, bodyMaxHeight, scrollChainToParent }: DataTableShellProps) {
+  const chain =
+    bodyMaxHeight != null && scrollChainToParent !== false;
   const inner = bodyMaxHeight ? (
-    <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: bodyMaxHeight }}>
+    <div
+      className={cn('overflow-y-auto', chain ? 'overscroll-y-auto' : 'overscroll-contain')}
+      style={{ maxHeight: bodyMaxHeight }}
+    >
       {children}
     </div>
   ) : (
