@@ -20,8 +20,9 @@ import { inferExpenseTaxonomyKey } from './expenseTaxonomy';
 import { inferIncomeTaxonomyKey } from './incomeTaxonomy';
 import { mergeMaterialsPack62IfAbsent } from './materialsPack62';
 import { generateId, getCollection, setCollection } from './storage';
+import { legacyProjectTypeToSolarKind } from './solarProjectKind';
 
-const CURRENT_SCHEMA = 8;
+const CURRENT_SCHEMA = 9;
 
 function defaultJobTitleFromRole(role: User['role']): string | undefined {
   switch (role) {
@@ -152,6 +153,7 @@ function migrateProjects(list: Project[]): Project[] {
     materialsSent: p.materialsSent ?? [],
     loanInstallments: p.loanInstallments ?? [],
     coPartnerIds: Array.isArray(p.coPartnerIds) ? p.coPartnerIds : [],
+    solarKind: p.solarKind ?? legacyProjectTypeToSolarKind(p.type),
   }));
   return migrateProjectSiteLedgerFromMaterialsSent(base);
 }

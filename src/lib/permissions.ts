@@ -1,5 +1,23 @@
 import type { UserRole } from '../types';
 
+/**
+ * Product-spec roles (EPC doc) vs current app roles. Extend Partner/Vendor when dedicated portals exist.
+ */
+export const EPC_SPEC_ROLE_APP_ROLES: Record<
+  'Admin' | 'Internal_Ops' | 'Installer' | 'Partner' | 'Vendor',
+  readonly UserRole[]
+> = {
+  Admin: ['Super Admin', 'Admin', 'CEO', 'Management'],
+  Internal_Ops: ['Management', 'Admin', 'CEO'],
+  Installer: ['Installation Team'],
+  Partner: [],
+  Vendor: [],
+};
+
+export function appRolesForEpcSpecRole(spec: keyof typeof EPC_SPEC_ROLE_APP_ROLES): readonly UserRole[] {
+  return EPC_SPEC_ROLE_APP_ROLES[spec];
+}
+
 const financePrefixes = ['/finance'];
 const hrPrefixes = ['/hr'];
 const settingsPrefixes = ['/settings'];

@@ -49,6 +49,9 @@ import {
   shouldPromoteProjectTypeInSection,
   shouldPromoteProjectTypeOnListCard,
 } from '../../lib/projectCardTags';
+import { billingSummaryLines } from '../../lib/billingRules';
+import { documentationTier, requiredProjectDocuments } from '../../lib/projectDocumentRules';
+import { inferSolarKind } from '../../lib/solarProjectKind';
 import { projectIsActivePipeline, projectIsCompletedClosed } from '../../lib/siteEligibility';
 import type {
   Agent,
@@ -74,6 +77,8 @@ import type {
   SiteDocumentKind,
   SiteMaterialLedgerRow,
   SiteWorkStatusItem,
+  SolarProjectKind,
+  Supplier,
   Task,
   User,
 } from '../../types';
@@ -1534,6 +1539,7 @@ export function ProjectDetail() {
   const channelFees = useLiveCollection<ChannelPartnerFee>('channelFees');
   const quotations = useLiveCollection<Quotation>('quotations');
   const enquiries = useLiveCollection<Enquiry>('enquiries');
+  const suppliers = useLiveCollection<Supplier>('suppliers');
   const introAgentEconomics = useLiveCollection<AgentIntroProjectEconomics>('introAgentEconomics');
   const { bump } = useDataRefresh();
   const { show } = useToast();
@@ -1646,6 +1652,10 @@ export function ProjectDetail() {
     });
     return ev.sort((a, b) => b.t.localeCompare(a.t));
   }, [found, tasks, companyExpsAll, outsourceRows, invoices, payments]);
+
+  const epcDocChecklist = useMemo(() => (found ? requiredProjectDocuments(found) : []), [found]);
+  const epcBillingLines = useMemo(() => (found ? billingSummaryLines(found) : []), [found]);
+  const epcDocTier = useMemo(() => (found ? documentationTier(inferSolarKind(found)) : 'full'), [found]);
 
   if (!found) return <p>Not found</p>;
   const project = found;
@@ -2175,6 +2185,148 @@ export function ProjectDetail() {
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract</span>
             <span className="mt-1 block text-lg font-semibold text-foreground">{formatINRDecimal(project.contractAmount)}</span>
           </p>
+        </div>
+        <div className="space-y-3 rounded-lg border border-dashed border-border/80 bg-muted/15 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">EPC &amp; billing model</p>
+          <p className="text-[11px] text-muted-foreground">
+            Active kind: <strong className="text-foreground">{inferSolarKind(project)}</strong> · Doc tier: {epcDocTier} ·
+            Legacy type: {project.type}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">
+              <span className="block text-xs font-medium text-muted-foreground">Solar kind</span>
+              <select
+                className="select-shell mt-1 w-full"
+                disabled={readOnly}
+                value={project.solarKind ?? inferSolarKind(project)}
+                onChange={(e) => patchProject({ solarKind: e.target.value as SolarProjectKind })}
+              >
+                {(['SOLO_EPC', 'PARTNER_EPC', 'INC', 'FIXED_EPC', 'VENDOR_NETWORK'] as const).map((k) => (
+                  <option key={k} value={k}>
+                    {k.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs font-medium text-muted-foreground">Vendor (DISCOM / supplier)</span>
+              <select
+                className="select-shell mt-1 w-full"
+                disabled={readOnly}
+                value={project.vendorId ?? ''}
+                onChange={(e) => patchProject({ vendorId: e.target.value || undefined })}
+              >
+                <option value="">— None —</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs font-medium text-muted-foreground">Internal cost estimate (₹)</span>
+              <input
+                type="number"
+                min={0}
+                className="input-shell mt-1 w-full"
+                disabled={readOnly}
+                value={project.internalCostEstimateInr ?? ''}
+                onChange={(e) =>
+                  patchProject({
+                    internalCostEstimateInr: e.target.value === '' ? undefined : Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs font-medium text-muted-foreground">Fixed backend price (₹)</span>
+              <input
+                type="number"
+                min={0}
+                className="input-shell mt-1 w-full"
+                disabled={readOnly}
+                value={project.fixedBackendPriceInr ?? ''}
+                onChange={(e) =>
+                  patchProject({
+                    fixedBackendPriceInr: e.target.value === '' ? undefined : Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="rounded border-input"
+              disabled={readOnly}
+              checked={!!project.createdWithoutQuotation}
+              onChange={(e) => patchProject({ createdWithoutQuotation: e.target.checked })}
+            />
+            <span>Created without quotation</span>
+          </label>
+          {inferSolarKind(project) === 'PARTNER_EPC' ? (
+            <label className="text-sm">
+              <span className="block text-xs font-medium text-muted-foreground">Partner EPC — vendor ownership</span>
+              <select
+                className="select-shell mt-1 w-full"
+                disabled={readOnly}
+                value={project.partnerEpicVendorOwnership ?? ''}
+                onChange={(e) =>
+                  patchProject({
+                    partnerEpicVendorOwnership:
+                      e.target.value === ''
+                        ? undefined
+                        : (e.target.value as NonNullable<Project['partnerEpicVendorOwnership']>),
+                  })
+                }
+              >
+                <option value="">—</option>
+                <option value="VENDOR_OWNED_BY_US">Vendor owned by us</option>
+                <option value="VENDOR_OWNED_BY_PARTNER">Vendor owned by partner</option>
+              </select>
+            </label>
+          ) : null}
+          {inferSolarKind(project) === 'FIXED_EPC' ? (
+            <label className="text-sm">
+              <span className="block text-xs font-medium text-muted-foreground">Fixed EPC — vendor case</span>
+              <select
+                className="select-shell mt-1 w-full"
+                disabled={readOnly}
+                value={project.fixedEpicVendor ?? ''}
+                onChange={(e) =>
+                  patchProject({
+                    fixedEpicVendor:
+                      e.target.value === ''
+                        ? undefined
+                        : (e.target.value as NonNullable<Project['fixedEpicVendor']>),
+                  })
+                }
+              >
+                <option value="">—</option>
+                <option value="OUR_VENDOR">Our vendor</option>
+                <option value="PARTNER_VENDOR">Partner vendor</option>
+              </select>
+            </label>
+          ) : null}
+          <div>
+            <p className="text-[10px] font-medium uppercase text-muted-foreground">Billing rules (preview)</p>
+            <ul className="mt-1 list-inside list-disc text-[11px] text-muted-foreground">
+              {epcBillingLines.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[10px] font-medium uppercase text-muted-foreground">Documentation checklist</p>
+            <ul className="mt-1 flex flex-wrap gap-2">
+              {epcDocChecklist.map((d) => (
+                <li key={d.id} className="rounded-full border border-border px-2 py-0.5 text-[10px] text-foreground">
+                  {d.label}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
         <div className="space-y-3 border-t border-border/60 pt-4">
           <p>

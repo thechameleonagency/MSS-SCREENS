@@ -48,6 +48,7 @@ import {
 } from './storage';
 import { runDataMigrations } from './migrations';
 import { computeEffectivePrice, defaultExpenseTagForRole, defaultProgressSteps } from './helpers';
+import { legacyProjectTypeToSolarKind } from './solarProjectKind';
 import { mergeMaterialsPack62IfAbsent } from './materialsPack62';
 import { EXPENSE_TAXONOMY, expenseTaxonomyKey, type ExpensePillarId } from './expenseTaxonomy';
 import { incomeTaxonomyKey } from './incomeTaxonomy';
@@ -911,6 +912,7 @@ function seedProjects(quotations: Quotation[]): Project[] {
     channelPartnerId: type === 'Vendorship Fee' ? IDS.ch1 : undefined,
     agentId: IDS.a1,
     paymentType: 'Bank Loan + Cash',
+    solarKind: legacyProjectTypeToSolarKind(type),
     createdAt: now,
     updatedAt: now,
     ...extra,

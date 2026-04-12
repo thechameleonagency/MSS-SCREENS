@@ -342,6 +342,28 @@ export type ProjectType =
   | 'Vendorship Fee'
   | 'Partner with Contributions';
 
+/**
+ * Canonical multi-party solar EPC kind (product spec). Use `solarKind` on `Project` when set;
+ * otherwise infer from legacy `ProjectType` via `legacyProjectTypeToSolarKind` in `lib/solarProjectKind`.
+ */
+export type SolarProjectKind = 'SOLO_EPC' | 'PARTNER_EPC' | 'INC' | 'FIXED_EPC' | 'VENDOR_NETWORK';
+
+export type PartnerEpicVendorOwnership = 'VENDOR_OWNED_BY_US' | 'VENDOR_OWNED_BY_PARTNER';
+
+export type FixedEpicVendorKind = 'OUR_VENDOR' | 'PARTNER_VENDOR';
+
+export type BillingPartyEntity = 'company' | 'partner' | 'vendor' | 'customer' | 'external_network';
+
+export type BillingDirection =
+  | 'company_to_customer'
+  | 'partner_to_customer'
+  | 'company_to_partner'
+  | 'vendor_to_customer'
+  | 'external_to_customer'
+  | 'external_to_company_commission';
+
+export type BillingDocumentKind = 'epc_invoice' | 'material_invoice' | 'service_invoice' | 'commission_margin';
+
 export type ProjectStatus = 'New' | 'In Progress' | 'Completed' | 'Closed' | 'On Hold';
 
 /** Lifecycle label (spec #08); optional on `Project`; otherwise derived in UI */
@@ -422,6 +444,24 @@ export interface Project {
   id: string;
   name: string;
   type: ProjectType;
+  /** When set, drives billing/doc rules; else derived from `type`. */
+  solarKind?: SolarProjectKind;
+  /** PARTNER_EPC: who owns DISCOM / vendor account. */
+  partnerEpicVendorOwnership?: PartnerEpicVendorOwnership;
+  /** FIXED_EPC: whose vendor path applies. */
+  fixedEpicVendor?: FixedEpicVendorKind;
+  /** DISCOM / external vendor ref (supplier id or future vendor registry id). */
+  vendorId?: string;
+  /** Who holds the vendor relationship for this site. */
+  vendorOwnership?: 'company' | 'partner' | 'external';
+  executionOwnerParty?: 'company' | 'partner' | 'vendor';
+  billingOwnerParty?: BillingPartyEntity;
+  /** Internal estimate — never overwrite actuals in expenses; used for margin. */
+  internalCostEstimateInr?: number;
+  /** FIXED_EPC backend price to partner-facing sell. */
+  fixedBackendPriceInr?: number;
+  /** Partner flows may create projects before a quotation exists. */
+  createdWithoutQuotation?: boolean;
   category: 'Residential' | 'Commercial' | 'Industrial' | 'Other';
   status: ProjectStatus;
   customerId: string;
@@ -736,6 +776,13 @@ export interface Invoice {
   received: number;
   balance: number;
   status: 'Paid' | 'Partial' | 'Unpaid';
+  /** Multi-party billing (optional; default remains company → customer). */
+  billingDirection?: BillingDirection;
+  billingDocumentKind?: BillingDocumentKind;
+  fromEntity?: BillingPartyEntity;
+  toEntity?: BillingPartyEntity;
+  /** B2B counterparty when direction involves partner. */
+  counterpartyPartnerId?: string;
   lineItems?: InvoiceLineItem[];
   serviceLines?: InvoiceServiceLine[];
   customerGstin?: string;

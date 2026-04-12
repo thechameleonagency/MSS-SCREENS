@@ -30,6 +30,11 @@ export function FinanceHubPage() {
     [invoices, saleBills, expenses, incomes]
   );
 
+  const multiPartyInvoiceCount = useMemo(
+    () => invoices.filter((i) => i.billingDirection != null).length,
+    [invoices]
+  );
+
   const months = useMemo(() => {
     const out: { key: string; label: string; rev: number; exp: number }[] = [];
     const now = new Date();
@@ -69,6 +74,15 @@ export function FinanceHubPage() {
 
   return (
     <div className="space-y-8">
+      {multiPartyInvoiceCount > 0 && (
+        <Card padding="md" className="border-dashed border-primary/30 bg-primary/5 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">EPC / multi-party billing</p>
+          <p className="mt-1 text-foreground">
+            {multiPartyInvoiceCount} invoice(s) use explicit billing direction (company ↔ partner / external). See project detail
+            for kind and rules.
+          </p>
+        </Card>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card variant="feature" padding="lg">
           <p className="text-xs font-medium uppercase text-muted-foreground">Total revenue</p>
